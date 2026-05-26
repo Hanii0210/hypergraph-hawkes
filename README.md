@@ -25,7 +25,7 @@
 
 This repository presents a **complete inference framework** for recovering higher-order (hyperedge) interaction structure in multi-cellular systems from asynchronous event-time data. We introduce the **Hyperedge-triggered Hawkes (HTH) process**, in which the firing intensity of each cell depends not only on pairwise excitation from individual neighbours but also on the **simultaneous co-activation of cell groups** within a short temporal window.
 
-We derive a **closed-form EM algorithm** with a novel piecewise compensator, validate it through **10 controlled experiments on synthetic data**, and apply the framework to **real multi-electrode array recordings of mouse retinal ganglion cells** (CRCNS ret-1 dataset). The real-data analysis reveals suggestive but not decisive evidence for higher-order interactions, honestly characterising both the model's strengths and its limitations.
+We derive a **closed-form EM algorithm** with a novel piecewise compensator, validate it through **11 controlled experiments on synthetic data**, and apply the framework to **real multi-electrode array recordings of mouse retinal ganglion cells** (CRCNS ret-1 dataset). The real-data analysis reveals suggestive but not decisive evidence for higher-order interactions, honestly characterising both the model's strengths and its limitations.
 
 ---
 
@@ -169,6 +169,12 @@ This honest characterisation of model limitations is itself a scientific contrib
 
 > 20 independent runs from random starting points all converge to the same log-likelihood within std = 0.004 nats.
 
+### Bias Ablation Across Kernel Decay Rates
+
+![Bias Ablation](experiments/exp11_bias_ablation.png)
+
+> The bias on hyperedge weight is non-monotonic in the kernel decay rate beta, minimised at intermediate values. This rules out the simple temporal-overlap hypothesis and motivates adaptive kernel bandwidth selection.
+
 ### Real Data: Mouse Retinal Ganglion Cells
 
 ![Real Data](experiments/exp10_realdata.png)
@@ -209,7 +215,7 @@ where t_1 < t_2 < ... < t_M are the ordered completion times and t_{M+1} = T. Th
 
 ## 🏗️ Repository Structure
 
-    hypergraph_hawkes/
+    ./
     |
     |-- models/
     |   |-- kernel.py               Exponential kernel + HyperedgeAnchor
@@ -224,7 +230,7 @@ where t_1 < t_2 < ... < t_M are the ordered completion times and t_{M+1} = T. Th
     |   |-- simulator.py            Ogata-thinning HTH event simulator
     |   `-- data_loader.py          CSV import/export for event streams
     |
-    |-- experiments/                11 experiments + 10 publication-grade figures
+    |-- experiments/                11 experiments + 11 publication-grade figures
     |-- tests/                      7 unit-test files (30 sub-tests)
     |-- data/                       CRCNS ret-1 neural recordings (not tracked)
     |
@@ -251,7 +257,7 @@ Expected output: 7/7 test files passed, 30/30 sub-tests.
 
     python run_all.py
 
-This executes all 11 experiments and regenerates all 10 figures. Total runtime is approximately 90-120 minutes on a single CPU core. Experiment 10 (real data) requires the CRCNS ret-1 dataset to be downloaded separately (see below).
+This executes all 11 experiments and regenerates all 11 figures. Total runtime is approximately 90-120 minutes on a single CPU core. Experiment 10 (real data) requires the CRCNS ret-1 dataset to be downloaded separately (see below).
 
 ### Real Data Setup
 
