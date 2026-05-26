@@ -13,10 +13,7 @@ with open("experiments/exp10_realdata.pkl", "rb") as f:
 n_cells    = R["n_cells"]
 candidates = R["candidates"]
 
-
-# =============================================================================
 # Figure: use explicit GridSpec for full control over spacing
-# =============================================================================
 fig = plt.figure(figsize=(20, 6))
 gs = gridspec.GridSpec(1, 4, figure=fig,
                        width_ratios=[1.1, 0.05, 1.0, 1.0],
