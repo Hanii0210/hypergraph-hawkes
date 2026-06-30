@@ -18,10 +18,10 @@ Usage examples:
 Notes:
     - The legacy archive/legacy_realdata_scripts/exp10_realdata.py is intentionally not used here.
       Formal real-data analysis is handled by:
-          experiments/realdata_ret1.py
-          experiments/realdata_pvc3.py
-          experiments/realdata_pvc11.py
-          experiments/plot_realdata_summary.py
+          experiments/real01_ret1.py
+          experiments/real02_pvc3.py
+          experiments/real03_pvc11.py
+          experiments/real04_plot_summary.py
     - Candidate-count BIC is the primary real-data model-comparison statistic.
 """
 
@@ -82,7 +82,7 @@ def realdata_steps(raw_root: str, top_m_list: str, n_iter: int) -> List[Step]:
             "Real data ret-1 formal window stability",
             [
                 sys.executable,
-                "experiments/realdata_ret1.py",
+                "experiments/real01_ret1.py",
                 "--raw-root",
                 raw_root,
                 "--file",
@@ -99,7 +99,7 @@ def realdata_steps(raw_root: str, top_m_list: str, n_iter: int) -> List[Step]:
             "Real data PVC-3 area17 formal window stability",
             [
                 sys.executable,
-                "experiments/realdata_pvc3.py",
+                "experiments/real02_pvc3.py",
                 "--raw-root",
                 raw_root,
                 "--top-m-list",
@@ -112,7 +112,7 @@ def realdata_steps(raw_root: str, top_m_list: str, n_iter: int) -> List[Step]:
             "Real data PVC-11 monkey2 formal window stability",
             [
                 sys.executable,
-                "experiments/realdata_pvc11.py",
+                "experiments/real03_pvc11.py",
                 "--raw-root",
                 raw_root,
                 "--monkey",
@@ -127,7 +127,7 @@ def realdata_steps(raw_root: str, top_m_list: str, n_iter: int) -> List[Step]:
 
 
 REALDATA_PLOTS: List[Step] = [
-    Step("Plot real-data summary figures", [sys.executable, "experiments/plot_realdata_summary.py"]),
+    Step("Plot real-data summary figures", [sys.executable, "experiments/real04_plot_summary.py"]),
 ]
 
 

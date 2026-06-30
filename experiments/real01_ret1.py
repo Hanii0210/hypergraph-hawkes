@@ -16,7 +16,7 @@ Primary evidence:
     bicdiff_candidate_count > 0 favours HTH.
 
 Example:
-    python experiments/realdata_ret1.py --raw-root data/raw --file 20080516_R1.mat --record-index 0 --top-m-list 1,2,3 --n-iter 20
+    python experiments/real01_ret1.py --raw-root data/raw --file 20080516_R1.mat --record-index 0 --top-m-list 1,2,3 --n-iter 20
 """
 
 import argparse
@@ -249,7 +249,7 @@ def main():
     )
 
     out_prefix = Path(args.out_prefix) if args.out_prefix else Path(
-        f"experiments/results/realdata/realdata_ret1_{Path(args.file).stem}_rec{args.record_index}"
+        f"experiments/results/realdata/real01_ret1_{Path(args.file).stem}_rec{args.record_index}"
     )
     csv_path = out_prefix.with_suffix(".csv")
     pkl_path = out_prefix.with_suffix(".pkl")

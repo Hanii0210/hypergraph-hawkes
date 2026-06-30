@@ -34,18 +34,18 @@ These scripts are kept for reproducibility but are not part of the default `run_
 
 | Paper ID | Script | Output prefix | Role |
 |---:|---|---|---|
-| R1 | `realdata_ret1.py` | `results/realdata/realdata_ret1_20080516_R1_rec0.*` | ret-1 retina |
-| R2 | `realdata_pvc3.py` | `results/realdata/realdata_pvc3_area17.*` | PVC-3 cortex |
-| R3 | `realdata_pvc11.py` | `results/realdata/realdata_pvc11_monkey2.*` | PVC-11 cortex |
+| R1 | `real01_ret1.py` | `results/realdata/real01_ret1_20080516_R1_rec0.*` | ret-1 retina |
+| R2 | `real02_pvc3.py` | `results/realdata/real02_pvc3_area17.*` | PVC-3 cortex |
+| R3 | `real03_pvc11.py` | `results/realdata/real03_pvc11_monkey2.*` | PVC-11 cortex |
 
 ## Legacy real-data scripts
 
 | Old ID | Archived path | Status |
 |---:|---|---|
 | 10 | `archive/legacy_realdata_scripts/exp10_realdata.py`, `archive/legacy_realdata_scripts/exp10_plot.py` | legacy old real-data experiment; superseded by the formal real-data pipeline |
-| 16 | `archive/legacy_realdata_scripts/exp16_pvc3_window_stability.py` | legacy PVC-3 exploratory real-data script; superseded by `realdata_pvc3.py` |
-| 17 | `archive/legacy_realdata_scripts/exp17_pvc11_window_stability.py` | legacy PVC-11 exploratory real-data script; superseded by `realdata_pvc11.py` |
-| 18 | `archive/legacy_realdata_scripts/exp18_ret1_window_stability.py` | legacy ret-1 exploratory real-data script; superseded by `realdata_ret1.py` |
+| 16 | `archive/legacy_realdata_scripts/exp16_pvc3_window_stability.py` | legacy PVC-3 exploratory real-data script; superseded by `real02_pvc3.py` |
+| 17 | `archive/legacy_realdata_scripts/exp17_pvc11_window_stability.py` | legacy PVC-11 exploratory real-data script; superseded by `real03_pvc11.py` |
+| 18 | `archive/legacy_realdata_scripts/exp18_ret1_window_stability.py` | legacy ret-1 exploratory real-data script; superseded by `real01_ret1.py` |
 
 ## Notes
 

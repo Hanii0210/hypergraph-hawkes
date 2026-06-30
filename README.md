@@ -198,9 +198,9 @@ Formal real-data scripts are separated from exploratory legacy scripts.
 
 | ID | Script | Dataset |
 |---:|---|---|
-| R1 | `experiments/realdata_ret1.py` | ret-1 retina |
-| R2 | `experiments/realdata_pvc3.py` | PVC-3 area 17 |
-| R3 | `experiments/realdata_pvc11.py` | PVC-11 monkey 2 |
+| R1 | `experiments/real01_ret1.py` | ret-1 retina |
+| R2 | `experiments/real02_pvc3.py` | PVC-3 area 17 |
+| R3 | `experiments/real03_pvc11.py` | PVC-11 monkey 2 |
 
 Real-data outputs are stored in:
 
@@ -257,7 +257,7 @@ python run_all.py --quick
 ### 5. Regenerate real-data summary figures
 
 ```bash
-python experiments/plot_realdata_summary.py
+python experiments/real04_plot_summary.py
 ```
 
 ### 6. Run the BIC smoke check with your own event CSV

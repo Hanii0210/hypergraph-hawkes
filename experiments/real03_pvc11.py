@@ -1,11 +1,15 @@
 """
-Formal real-data analysis: PVC-3 area17 window stability.
+Formal real-data analysis: PVC-11 spontaneous window stability.
 
-This script is the cleaned version of exp16_pvc3_window_stability.py.
+This script is the cleaned version of exp17_pvc11_window_stability.py.
 It uses experiments/realdata_pipeline.py for the shared protocol.
 
+Default target:
+    PVC-11 spontaneous monkey 2, because it was the smallest spontaneous PVC-11
+    file in the inventory and is suitable for the robustness analysis.
+
 Protocol:
-    - load CRCNS PVC-3 area17 spontaneous spike trains
+    - load PVC-11 spontaneous spike trains
     - choose a fixed top-N neuron subset over the full analysis span
     - for each non-overlapping window and each top_m candidate setting:
         * split the window into selection and inference halves
@@ -17,7 +21,7 @@ Primary evidence:
     bicdiff_candidate_count > 0 favours HTH.
 
 Example:
-    python experiments/realdata_pvc3.py --raw-root data/raw --top-m-list 1,2,3 --n-iter 20
+    python experiments/real03_pvc11.py --raw-root data/raw --monkey 2 --top-m-list 1,2,3 --n-iter 20
 """
 
 import argparse
@@ -25,6 +29,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import scipy.io as sio
 
 sys.path.insert(0, ".")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -32,42 +37,58 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import realdata_pipeline as rp
 
 
-def find_area17_dir(raw_root: Path) -> Path:
-    matches = sorted(raw_root.glob("**/spont_activity/spike_data_area17"))
-    matches = [m for m in matches if "__MACOSX" not in m.parts]
+def iter_event_list(events):
+    if isinstance(events, np.ndarray):
+        if events.dtype == object:
+            return [events.flat[i] for i in range(events.size)]
+        if events.ndim == 1:
+            return [events]
+    if isinstance(events, (list, tuple)):
+        return list(events)
+    return []
+
+
+def find_pvc11_file(raw_root: Path, monkey: int) -> Path:
+    pattern = f"**/data_and_scripts/spikes_spontaneous/spiketimesmonkey{monkey}spont.mat"
+    matches = sorted(raw_root.glob(pattern))
+    matches = [m for m in matches if "__MACOSX" not in m.parts and not m.name.startswith("._")]
     if not matches:
         raise FileNotFoundError(
-            f"Could not find PVC-3 area17 under {raw_root}. "
-            "Expected **/spont_activity/spike_data_area17"
+            f"Could not find {pattern} under {raw_root}. "
+            "Check that pvc-11 data_and_scripts.tar.gz has been extracted."
         )
     return matches[0]
 
 
-def load_area17(raw_root: Path):
-    area_dir = find_area17_dir(raw_root)
-    trains = []
-    files = []
+def load_pvc11_spont(raw_root: Path, monkey: int):
+    mat_path = find_pvc11_file(raw_root, monkey)
+    mat = sio.loadmat(mat_path, simplify_cells=True)
+    data = mat.get("data", {})
 
-    for spk in sorted(area_dir.glob("t*.spk")):
-        if spk.name.startswith("._"):
-            continue
-        # CRCNS pvc-3 .spk files are uint64 microsecond ticks.
-        t = np.fromfile(spk, dtype=np.uint64).astype(float) / 1_000_000.0
-        t = np.sort(t[np.isfinite(t)])
-        trains.append(t)
-        files.append(spk.name)
+    if not isinstance(data, dict) or "EVENTS" not in data:
+        raise KeyError(
+            f"Could not find data['EVENTS'] in {mat_path}. "
+            f"Available top-level keys: {list(mat.keys())}"
+        )
+
+    raw_trains = [rp.as_1d_float(x) for x in iter_event_list(data["EVENTS"])]
+
+    keep = [(idx, t) for idx, t in enumerate(raw_trains) if len(t) > 0]
+    original_indices = [idx for idx, _ in keep]
+    trains = [t for _, t in keep]
 
     if not trains:
-        raise FileNotFoundError(f"No .spk files found in {area_dir}")
+        raise ValueError(f"No nonempty spike trains found in {mat_path}")
 
-    return area_dir, trains, files
+    return mat_path, trains, original_indices
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw-root", default="data/raw")
-    parser.add_argument("--starts", default="0,20,40,60,80")
-    parser.add_argument("--duration", type=float, default=20.0)
+    parser.add_argument("--monkey", type=int, default=2)
+    parser.add_argument("--starts", default="0,40,80,120,160")
+    parser.add_argument("--duration", type=float, default=40.0)
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--top-m-list", default="1,2,3")
     parser.add_argument("--beta", type=float, default=2.0)
@@ -75,7 +96,7 @@ def main():
     parser.add_argument("--n-iter", type=int, default=20)
     parser.add_argument("--lambda-l1", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=2026)
-    parser.add_argument("--out-prefix", default="experiments/results/realdata/realdata_pvc3_area17")
+    parser.add_argument("--out-prefix", default=None)
     parser.add_argument("--verbose-hth", action="store_true")
     args = parser.parse_args()
 
@@ -85,21 +106,22 @@ def main():
     span_start = min(starts)
     span_end = max(s + args.duration for s in starts)
 
-    area_dir, trains, files = load_area17(Path(args.raw_root))
+    mat_path, trains, original_indices = load_pvc11_spont(Path(args.raw_root), args.monkey)
 
     selected_indices, mapping = rp.select_fixed_subset(
         trains=trains,
         top_n=args.top_n,
         span_start=span_start,
         span_end=span_end,
-        original_labels=files,
-        label_key="original_file",
+        original_labels=original_indices,
+        label_key="original_index",
     )
 
     print("=" * 110)
-    print("Formal real-data analysis: PVC-3 area17")
+    print("Formal real-data analysis: PVC-11 spontaneous")
     print("=" * 110)
-    print(f"source_dir      : {area_dir}")
+    print(f"source_file     : {mat_path}")
+    print(f"monkey          : {args.monkey}")
     print(f"analysis span   : [{span_start}, {span_end}) sec")
     print(f"starts          : {starts}")
     print(f"duration        : {args.duration}")
@@ -110,7 +132,7 @@ def main():
     print("\nFixed neuron mapping:")
     for m in mapping:
         print(
-            f"  node {m['new_node']:2d} <- {m['original_file']}, "
+            f"  node {m['new_node']:2d} <- original {m['original_index']:3d}, "
             f"count_span={m['count_in_analysis_span']}"
         )
 
@@ -125,22 +147,26 @@ def main():
         duration=args.duration,
         top_n=args.top_n,
         top_m_list=top_m_list,
-        dataset="PVC-3 area17",
+        dataset=f"PVC-11 monkey{args.monkey}",
         beta=args.beta,
         delta=args.delta,
         n_iter=args.n_iter,
         lambda_l1=args.lambda_l1,
         seed=args.seed,
-        label_key="original_file",
+        label_key="original_index",
         extra={
             "data_type": "continuous spike-time",
-            "source": str(area_dir),
+            "source": str(mat_path),
+            "condition": "spontaneous",
+            "monkey": int(args.monkey),
         },
         verbose_hth=args.verbose_hth,
         print_progress=True,
     )
 
-    out_prefix = Path(args.out_prefix)
+    out_prefix = Path(args.out_prefix) if args.out_prefix else Path(
+        f"experiments/results/realdata/real03_pvc11_monkey{args.monkey}"
+    )
     csv_path = out_prefix.with_suffix(".csv")
     pkl_path = out_prefix.with_suffix(".pkl")
     json_path = out_prefix.with_name(out_prefix.name + "_mapping.json")
@@ -149,7 +175,7 @@ def main():
     rp.save_pickle(
         {
             "args": vars(args),
-            "source_dir": str(area_dir),
+            "source_file": str(mat_path),
             "mapping": mapping,
             "rows": rows,
             "results": results,
@@ -158,7 +184,7 @@ def main():
     )
     rp.save_json(
         {
-            "source_dir": str(area_dir),
+            "source_file": str(mat_path),
             "analysis_span": [span_start, span_end],
             "mapping": mapping,
         },
