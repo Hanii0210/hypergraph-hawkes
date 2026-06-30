@@ -71,17 +71,9 @@ The repository contains:
 
 For target node `n`, the conditional intensity is:
 
-$$
-\lambda_n(t)
-=
-\mu_n
-+
-\sum_{j:t_j<t}
-\alpha_{n_j\to n}\phi(t-t_j)
-+
-\sum_{e\ni n}
-\alpha_e\phi(t-t_{\mathrm{anchor}}(e,t))
-$$
+<p align="center">
+  <img src="figures/readme/formula_model.png" alt="HTH conditional intensity formula" width="860">
+</p>
 
 where:
 
@@ -96,13 +88,9 @@ where:
 
 The primary real-data model-comparison statistic is candidate-count BIC:
 
-$$
-\Delta \mathrm{BIC}_{\mathrm{cand}}
-=
-2(\log L_{\mathrm{HTH}}-\log L_{\mathrm{pairwise}})
--
-|\mathcal{E}_{\mathrm{cand}}|\log(n_{\mathrm{heldout}})
-$$
+<p align="center">
+  <img src="figures/readme/formula_bic.png" alt="Candidate-count BIC formula" width="820">
+</p>
 
 Positive values favor the HTH model after penalizing the number of candidate hyperedges.
 
