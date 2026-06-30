@@ -23,6 +23,10 @@ over independent realisations, for two regimes:
 A correct simulator yields p well above the threshold; the previous buggy
 simulator yields p ~ 1e-8 in regime (A).
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import numpy as np
 from scipy import stats
 

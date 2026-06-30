@@ -14,6 +14,7 @@ TESTS = [
     "test_estep.py",
     "test_mstep.py",
     "test_simulator.py",
+    "test_simulator_validity.py",
     "test_candidate_filter.py",
     "test_data_loader.py",
 ]

@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 sys.path.insert(0, ".")
 
 import os
@@ -20,7 +20,7 @@ tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
 tmp.close()
 save_events_to_csv(events_in, tmp.name)
 
-events_out, n_nodes, T = load_events_from_csv(tmp.name)
+events_out, n_nodes, T = load_events_from_csv(tmp.name, T=3.0)
 print(f"  events_out : {events_out}")
 print(f"  n_nodes    : {n_nodes}")
 print(f"  T          : {T}")
@@ -53,7 +53,7 @@ tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)
 tmp.close()
 save_events_to_csv(events_unsorted, tmp.name)
 
-events_loaded, _, _ = load_events_from_csv(tmp.name, sort=True)
+events_loaded, _, _ = load_events_from_csv(tmp.name, T=3.0, sort=True)
 print(f"  loaded sorted : {events_loaded}")
 times = [t for t, _ in events_loaded]
 assert times == sorted(times), "FAILED: not sorted"
@@ -71,7 +71,7 @@ bad_csv.write("foo,bar\n1,2\n")
 bad_csv.close()
 
 try:
-    load_events_from_csv(bad_csv.name)
+    load_events_from_csv(bad_csv.name, T=3.0)
     assert False, "FAILED: should have raised"
 except ValueError as e:
     print(f"  caught expected error: {e}")
