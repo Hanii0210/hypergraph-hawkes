@@ -7,20 +7,28 @@ from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
 from inference.e_step import EStep
 from inference.m_step import MStep
+from inference.em import run_em
 from simulation.simulator import HawkesSimulator
 
 
 # =============================================================================
-# Experiment 4: Phase Transition Boundary (signature experiment)
+# Experiment 4: Interaction-Strength Sensitivity (intensity & inferred coupling)
 #
-# Sweep the hyperedge interaction strength from sub-critical to super-critical.
+# Sweep the hyperedge interaction strength and track how the process intensity
+# and the inferred coupling respond.
 # At each strength:
 #   - simulate a dataset
 #   - measure the empirical burst frequency (event density)
 #   - run EM, infer parameters
 #   - compute spectral radius rho(A) of the effective interaction matrix
 # Plot rho vs alpha_hyper, and burst frequency vs alpha_hyper.
-# Predict: rho(A) crosses 1 exactly when burst frequency explodes.
+# NOTE: rho(A) here is computed from a LINEAR-Hawkes effective matrix and is
+# essentially alpha_hyper echoed back; it is a reference quantity, NOT a
+# criticality threshold. The HTH hyperedge uses a single most-recent anchor
+# (non-accumulating), so the process does not go super-critical: burst
+# frequency rises smoothly with alpha_hyper and shows no divergence at rho=1.
+# This experiment therefore reports intensity/coupling sensitivity, not a
+# phase transition.
 # =============================================================================
 
 TRUE_MU = np.array([0.2, 0.2, 0.2, 0.2])
@@ -105,28 +113,18 @@ for alpha_hyper_true in tqdm(ALPHA_HYPER_GRID, desc="alpha sweep"):
     rho_true = float(np.max(np.abs(np.linalg.eigvals(A_true))))
 
     tensor = HypergraphTensor(n_nodes=N_NODES, rank=3, seed=0)
-    estep  = EStep(kernel, anchor_calc)
-    mstep  = MStep(n_nodes=N_NODES, tensor=tensor, lambda_l1=0.001)
 
     rng = np.random.default_rng(seed=2026)
     mu             = rng.uniform(0.1, 0.4, size=N_NODES)
     alpha_pairwise = rng.uniform(0.0, 0.3, size=(N_NODES, N_NODES))
     np.fill_diagonal(alpha_pairwise, 0.0)
     alpha_hyper    = {e: float(rng.uniform(0.05, 0.5)) for e in EDGE_LIST}
-    for e in EDGE_LIST:
-        target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-        for v in e:
-            tensor.F[v, :] = target_factor
 
-    for it in range(N_ITER):
-        result = estep.compute(last_events, mu, alpha_pairwise, alpha_hyper, EDGE_LIST)
-        mu = mstep.update_mu(last_events, result["p_background"], T)
-        alpha_pairwise = mstep.update_alpha_pairwise(
-            last_events, result["p_pairwise"], result["p_hyper"], EDGE_LIST, kernel, T
-        )
-        alpha_hyper = mstep.update_alpha_hyper(
-            last_events, result["p_hyper"], EDGE_LIST, anchor_calc, kernel, T
-        )
+    # P8.2: unified EM driver (identical ops to former hand-rolled loop).
+    res = run_em(last_events, T, N_NODES, EDGE_LIST, kernel, anchor_calc,
+                 mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+                 n_iter=N_ITER, lambda_l1=0.001, tensor=tensor, hyper_update="als")
+    mu, alpha_pairwise, alpha_hyper = res.mu, res.alpha_pairwise, res.alpha_hyper
 
     A_inf = effective_interaction_matrix(
         alpha_pairwise, alpha_hyper, EDGE_LIST, N_NODES, BETA

@@ -78,13 +78,13 @@ summary_text = (
     "All baseline rates and pairwise weights\n"
     "are recovered with relative error < 5%.\n"
     "\n"
-    "The hyperedge weight exhibits a\n"
-    "systematic -22% bias with std/mean\n"
-    "ratio of 0.36. This matches the 24%\n"
-    "offset in spectral radius from Exp 4,\n"
-    "suggesting a single underlying mechanism\n"
-    "in the EM-thinning interaction that\n"
-    "admits an analytical correction."
+    "The hyperedge weight is recovered\n"
+    "near-unbiased (~ -6%) with a larger\n"
+    "spread (std/mean ratio ~0.25). The\n"
+    "residual difficulty is identifiability\n"
+    "/ variance, not a systematic bias --\n"
+    "see exp13 (calibration) and exp14\n"
+    "(weak detectability)."
 )
 
 ax.text(0.04, 0.96, summary_text,

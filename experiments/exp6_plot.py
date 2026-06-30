@@ -1,58 +1,21 @@
 import sys
 sys.path.insert(0, ".")
 
-import subprocess
-import re
+import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 # =============================================================================
-# Run exp6 and parse stdout (since exp6 doesn't save to a pkl)
+# Load results saved by exp6_3node_hyperedge.py
 # =============================================================================
-print("Running exp6_3node_hyperedge.py to capture results ...")
-result = subprocess.run(
-    [sys.executable, "experiments/exp6_3node_hyperedge.py"],
-    capture_output=True, text=True
-)
-output = result.stdout
-print(output)
+with open("experiments/exp6_3node_hyperedge.pkl", "rb") as f:
+    data = pickle.load(f)
 
-
-# =============================================================================
-# Parse the recovery summary table
-# =============================================================================
-edges = []
-true_vals = []
-inf_vals  = []
-types     = []
-
-# Look for the table that follows "--- Recovery Summary ---"
-pattern = re.compile(
-    r"\((\d+(?:,\s*\d+)+)\)\s+(\w+)\s+([\d.]+)\s+([\d.]+)"
-)
-
-started = False
-for line in output.split("\n"):
-    if "Recovery Summary" in line:
-        started = True
-        continue
-    if not started:
-        continue
-    m = pattern.search(line)
-    if m:
-        e_str = m.group(1).replace(" ", "")
-        e_tup = tuple(int(x) for x in e_str.split(","))
-        edges.append(e_tup)
-        types.append(m.group(2))
-        true_vals.append(float(m.group(3)))
-        inf_vals.append(float(m.group(4)))
-
-if len(edges) == 0:
-    raise RuntimeError("Could not parse exp6 output")
-
-true_vals = np.array(true_vals)
-inf_vals  = np.array(inf_vals)
+edges     = [tuple(e) for e in data["edges"]]
+types     = data["types"]
+true_vals = np.array(data["true"], dtype=float)
+inf_vals  = np.array(data["inferred"], dtype=float)
 
 
 # =============================================================================

@@ -5,8 +5,7 @@ import numpy as np
 from tqdm import tqdm
 from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
-from inference.e_step import EStep
-from inference.m_step import MStep
+from inference.em import run_em
 from simulation.simulator import HawkesSimulator
 
 
@@ -17,7 +16,7 @@ from simulation.simulator import HawkesSimulator
 # simulation seeds, each generating a fresh dataset from the same true
 # parameters. Report the distribution of recovery errors.
 #
-# This addresses the PhD-level question: is the 7% error in Exp 1 a
+# This addresses a question: is the 7% error in Exp 1 a
 # stable property of the inference, or a one-seed artefact?
 # =============================================================================
 
@@ -64,8 +63,6 @@ for seed in tqdm(range(N_SEEDS), desc="seeds"):
     n_events = len(events)
 
     tensor = HypergraphTensor(n_nodes=N_NODES, rank=3, seed=0)
-    estep  = EStep(kernel, anchor_calc)
-    mstep  = MStep(n_nodes=N_NODES, tensor=tensor, lambda_l1=0.001)
 
     rng = np.random.default_rng(seed=2026 + seed)
     mu             = rng.uniform(0.1, 0.5, size=N_NODES)
@@ -73,21 +70,15 @@ for seed in tqdm(range(N_SEEDS), desc="seeds"):
     np.fill_diagonal(alpha_pairwise, 0.0)
     alpha_hyper    = {e: float(rng.uniform(0.05, 0.4)) for e in EDGE_LIST}
 
-    for e in EDGE_LIST:
-        target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-        for v in e:
-            tensor.F[v, :] = target_factor
-
-    for _ in range(N_ITER):
-        result = estep.compute(events, mu, alpha_pairwise, alpha_hyper, EDGE_LIST)
-        mu = mstep.update_mu(events, result["p_background"], T)
-        alpha_pairwise = mstep.update_alpha_pairwise(
-            events, result["p_pairwise"], result["p_hyper"],
-            EDGE_LIST, kernel, T
-        )
-        alpha_hyper = mstep.update_alpha_hyper(
-            events, result["p_hyper"], EDGE_LIST, anchor_calc, kernel, T
-        )
+    res = run_em(
+        events, T, N_NODES, EDGE_LIST, kernel, anchor_calc,
+        mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+        n_iter=N_ITER, lambda_l1=0.001, tensor=tensor,
+        hyper_update="als",
+    )
+    mu             = res.mu
+    alpha_pairwise = res.alpha_pairwise
+    alpha_hyper    = res.alpha_hyper
 
     recovered["mu[0]"].append(mu[0])
     recovered["mu[1]"].append(mu[1])

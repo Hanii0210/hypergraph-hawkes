@@ -67,44 +67,55 @@ class HawkesSimulator:
 
         return lam
 
+    def _intensity_upper_bound(self, t: float, events: list) -> float:
+        """Total intensity at t+ (events at time == t counted as past).
+
+        Between two accepted events the exponential-kernel intensity only
+        decays, so this left-endpoint post-jump value is the exact supremum of
+        sum_n lambda_n(s) over the forward interval. It is therefore a valid
+        Ogata thinning bound with NO heuristic slack.
+        """
+        lam = self.mu.copy()
+        event_times_by_node = {}
+        for t_j, node_j in events:
+            if t_j > t:
+                break                      # events are time-sorted
+            lam += self.alpha_pairwise[node_j] * self.kernel(
+                np.array([max(t - t_j, 0.0)]))[0]
+            event_times_by_node.setdefault(node_j, []).append(t_j)
+        for e, alpha_e in self.alpha_hyper.items():
+            anchors = self.anchor_calc.find_anchors(e, event_times_by_node, t + 1e-12)
+            if anchors:
+                taus = np.maximum(np.array([t - t_a for t_a in anchors]), 0.0)
+                contribution = alpha_e * float(self.kernel(taus).sum())
+                for node_i in e:
+                    lam[node_i] += contribution
+        return float(lam.sum())
+
     def simulate(self, T: float, seed: int = 0,
                  max_events: int = 2000) -> list:
-        """
-        Generate an event sequence on [0, T] via Ogata thinning.
+        """Generate an event sequence on [0, T] via correct Ogata thinning.
 
-        Parameters
-        ----------
-        T          : float, observation window length
-        seed       : int,   random seed
-        max_events : int,   hard cap to prevent super-critical explosion
-
-        Returns
-        -------
-        list of (time, node) tuples sorted by time
+        The SAME upper bound lambda_bar generates the candidate inter-arrival
+        AND is the acceptance denominator (accept w.p. lambda(t)/lambda_bar),
+        and lambda_bar is recomputed at the start of each interval from the
+        post-jump intensity -- so it always dominates the decaying intensity
+        ahead. This passes the time-rescaling KS test (Exp(1) increments)
+        where the previous version did not.
         """
-        rng    = np.random.default_rng(seed)
+        rng = np.random.default_rng(seed)
         events = []
-        t      = 0.0
+        t = 0.0
 
-        lambda_bar = float(self.mu.sum()) + 1.0
-
-        while t < T:
-            if len(events) >= max_events:
-                break
-
-            dt = rng.exponential(1.0 / lambda_bar)
-            t  = t + dt
+        while t < T and len(events) < max_events:
+            lambda_bar = self._intensity_upper_bound(t, events) + 1e-12
+            t = t + rng.exponential(1.0 / lambda_bar)
             if t > T:
                 break
-
-            lam       = self._intensity(t, events)
+            lam = self._intensity(t, events)
             lam_total = float(lam.sum())
-            lambda_bar = lam_total + float(self.mu.sum()) + 1.0
-
-            u = rng.uniform()
-            if u * lambda_bar <= lam_total:
-                prob = lam / lam_total
-                node = int(rng.choice(self.n_nodes, p=prob))
+            if rng.uniform() * lambda_bar <= lam_total:   # SAME lambda_bar
+                node = int(rng.choice(self.n_nodes, p=lam / lam_total))
                 events.append((t, node))
 
         return events

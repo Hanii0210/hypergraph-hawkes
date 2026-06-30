@@ -17,8 +17,7 @@ sys.path.insert(0, ".")
 import numpy as np
 from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
-from inference.e_step import EStep
-from inference.m_step import MStep
+from inference.em import run_em
 from simulation.simulator import HawkesSimulator
 
 
@@ -58,8 +57,6 @@ print(f"Generated {len(events)} events over T={T}\n")
 # Initialise inference (random)
 # =============================================================================
 tensor = HypergraphTensor(n_nodes=N_NODES, rank=3, seed=0)
-estep  = EStep(kernel, anchor_calc)
-mstep  = MStep(n_nodes=N_NODES, tensor=tensor, lambda_l1=0.001)
 
 rng = np.random.default_rng(seed=2026)
 mu             = rng.uniform(0.1, 0.5, size=N_NODES)
@@ -67,40 +64,25 @@ alpha_pairwise = rng.uniform(0.0, 0.2, size=(N_NODES, N_NODES))
 np.fill_diagonal(alpha_pairwise, 0.0)
 alpha_hyper    = {e: float(rng.uniform(0.05, 0.4)) for e in EDGE_LIST}
 
-for e in EDGE_LIST:
-    target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-    for v in e:
-        tensor.F[v, :] = target_factor
-
 
 # =============================================================================
-# EM loop
+# EM loop  (real ALS over the CP factor matrix; see inference/em.py)
 # =============================================================================
-print(f"{'Iter':>4}  {'mu[0]':>7}  {'mu[1]':>7}  {'mu[2]':>7}  "
-      f"{'a[2->0]':>9}  {'hyper(0,1)':>12}")
-print("-" * 58)
-
-for it in range(1, N_ITER + 1):
-    result = estep.compute(events, mu, alpha_pairwise, alpha_hyper, EDGE_LIST)
-
-    mu             = mstep.update_mu(events, result["p_background"], T)
-    alpha_pairwise = mstep.update_alpha_pairwise(
-        events, result["p_pairwise"], result["p_hyper"],
-        EDGE_LIST, kernel, T
-    )
-    alpha_hyper    = mstep.update_alpha_hyper(
-        events, result["p_hyper"], EDGE_LIST, anchor_calc, kernel, T
-    )
-
-    if it % 20 == 0 or it == 1:
-        print(f"{it:>4}  {mu[0]:>7.4f}  {mu[1]:>7.4f}  {mu[2]:>7.4f}  "
-              f"{alpha_pairwise[2,0]:>9.4f}  {alpha_hyper[(0,1)]:>12.6f}")
+res = run_em(
+    events, T, N_NODES, EDGE_LIST, kernel, anchor_calc,
+    mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+    n_iter=N_ITER, lambda_l1=0.001, tensor=tensor,
+    hyper_update="als",
+)
+mu             = res.mu
+alpha_pairwise = res.alpha_pairwise
+alpha_hyper    = res.alpha_hyper
 
 
 # =============================================================================
 # Final comparison
 # =============================================================================
-print("\n--- Recovery Summary (single seed) ---")
+print("--- Recovery Summary (single seed) ---")
 print(f"{'Parameter':<24} {'True':>7} {'Inferred':>10} {'Error':>8}")
 print("-" * 52)
 

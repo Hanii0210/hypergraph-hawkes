@@ -4,9 +4,9 @@ sys.path.insert(0, ".")
 import numpy as np
 from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
-from inference.e_step import EStep
-from inference.m_step import MStep
+from inference.em import run_em
 from simulation.simulator import HawkesSimulator
+from models.likelihood import log_likelihood
 
 
 # =============================================================================
@@ -63,32 +63,6 @@ print(f"Generated {len(events)} events\n")
 
 
 # =============================================================================
-# Likelihood helper
-# =============================================================================
-def compute_loglik(events, T, mu, alpha_pairwise, alpha_hyper,
-                   kernel, anchor_calc):
-    sim_check = HawkesSimulator(
-        mu, alpha_pairwise, alpha_hyper, kernel, anchor_calc
-    )
-    log_lam_sum = 0.0
-    for i, (t_i, node_i) in enumerate(events):
-        history = events[:i]
-        lam = sim_check._intensity(t_i, history)
-        if lam[node_i] > 0:
-            log_lam_sum += np.log(lam[node_i])
-
-    grid = np.linspace(0, T, 200)
-    total_int = 0.0
-    for k in range(len(grid) - 1):
-        t_mid = 0.5 * (grid[k] + grid[k+1])
-        history = [(t, n) for t, n in events if t < t_mid]
-        lam = sim_check._intensity(t_mid, history)
-        total_int += float(lam.sum()) * (grid[k+1] - grid[k])
-
-    return log_lam_sum - total_int
-
-
-# =============================================================================
 # Run EM at each lambda_L1 value
 # =============================================================================
 n_obs = len(events)
@@ -101,8 +75,6 @@ print("-" * 90)
 from tqdm import tqdm
 for lam_l1 in tqdm(LAMBDA_GRID, desc="lambda sweep"):
     tensor = HypergraphTensor(n_nodes=N_NODES, rank=3, seed=0)
-    estep  = EStep(kernel, anchor_calc)
-    mstep  = MStep(n_nodes=N_NODES, tensor=tensor, lambda_l1=lam_l1)
 
     rng = np.random.default_rng(seed=2026)
     mu             = rng.uniform(0.1, 0.5, size=N_NODES)
@@ -110,23 +82,19 @@ for lam_l1 in tqdm(LAMBDA_GRID, desc="lambda sweep"):
     np.fill_diagonal(alpha_pairwise, 0.0)
     alpha_hyper    = {e: float(rng.uniform(0.05, 0.5)) for e in CANDIDATE_EDGES}
 
-    for e in CANDIDATE_EDGES:
-        target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-        for v in e:
-            tensor.F[v, :] = target_factor
+    res = run_em(
+        events, T, N_NODES, CANDIDATE_EDGES, kernel, anchor_calc,
+        mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+        n_iter=N_ITER, lambda_l1=lam_l1, tensor=tensor, hyper_update="als",
+    )
+    mu             = res.mu
+    alpha_pairwise = res.alpha_pairwise
+    alpha_hyper    = res.alpha_hyper
 
-    for it in range(N_ITER):
-        result = estep.compute(events, mu, alpha_pairwise, alpha_hyper, CANDIDATE_EDGES)
-        mu = mstep.update_mu(events, result["p_background"], T)
-        alpha_pairwise = mstep.update_alpha_pairwise(
-            events, result["p_pairwise"], result["p_hyper"], CANDIDATE_EDGES, kernel, T
-        )
-        alpha_hyper = mstep.update_alpha_hyper(
-            events, result["p_hyper"], CANDIDATE_EDGES, anchor_calc, kernel, T
-        )
-
-    ll = compute_loglik(events, T, mu, alpha_pairwise, alpha_hyper,
-                       kernel, anchor_calc)
+    # P8: canonical closed-form likelihood, replacing the legacy 200-point
+    # grid for consistency with exp7 / exp8 / exp10 / exp12 / exp13.
+    ll = log_likelihood(events, T, mu, alpha_pairwise, alpha_hyper,
+                        CANDIDATE_EDGES, kernel, anchor_calc, "closed_form")
 
     # Count surviving hyperedges (above small threshold)
     survival_threshold = 1e-3

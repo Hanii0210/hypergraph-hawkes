@@ -5,10 +5,10 @@ import numpy as np
 from tqdm import tqdm
 from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
-from inference.e_step import EStep
-from inference.m_step import MStep
+from inference.em import run_em
 from inference.candidate_filter import fit_pairwise_only
 from simulation.simulator import HawkesSimulator
+from models.likelihood import log_likelihood
 
 
 # =============================================================================
@@ -53,35 +53,10 @@ kernel      = ExponentialKernel(beta=BETA)
 anchor_calc = HyperedgeAnchor(delta=DELTA)
 
 
-def loglik_under(events, T, mu, alpha_pairwise, alpha_hyper, kernel, anchor_calc):
-    """Compute log-likelihood of an event stream given parameters."""
-    sim_check = HawkesSimulator(
-        mu, alpha_pairwise, alpha_hyper, kernel, anchor_calc
-    )
-    log_lam_sum = 0.0
-    for i, (t_i, n_i) in enumerate(events):
-        history = events[:i]
-        lam = sim_check._intensity(t_i, history)
-        if lam[n_i] > 0:
-            log_lam_sum += np.log(lam[n_i])
-
-    grid = np.linspace(0, T, 200)
-    total_int = 0.0
-    for k in range(len(grid) - 1):
-        t_mid = 0.5 * (grid[k] + grid[k+1])
-        history = [(t, n) for t, n in events if t < t_mid]
-        lam = sim_check._intensity(t_mid, history)
-        total_int += float(lam.sum()) * (grid[k+1] - grid[k])
-
-    return log_lam_sum - total_int
-
-
 def fit_full_HTH(events, T, n_nodes, edge_list, kernel, anchor_calc,
                  n_iter=60, lambda_l1=0.001, seed=0):
     """Fit full HTH model (mu + pairwise + hyperedge)."""
     tensor = HypergraphTensor(n_nodes=n_nodes, rank=3, seed=seed)
-    estep  = EStep(kernel, anchor_calc)
-    mstep  = MStep(n_nodes=n_nodes, tensor=tensor, lambda_l1=lambda_l1)
 
     rng = np.random.default_rng(seed)
     mu             = rng.uniform(0.1, 0.5, size=n_nodes)
@@ -89,23 +64,12 @@ def fit_full_HTH(events, T, n_nodes, edge_list, kernel, anchor_calc,
     np.fill_diagonal(alpha_pairwise, 0.0)
     alpha_hyper    = {e: float(rng.uniform(0.05, 0.4)) for e in edge_list}
 
-    for e in edge_list:
-        target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-        for v in e:
-            tensor.F[v, :] = target_factor
-
-    for _ in range(n_iter):
-        result = estep.compute(events, mu, alpha_pairwise, alpha_hyper, edge_list)
-        mu = mstep.update_mu(events, result["p_background"], T)
-        alpha_pairwise = mstep.update_alpha_pairwise(
-            events, result["p_pairwise"], result["p_hyper"],
-            edge_list, kernel, T
-        )
-        alpha_hyper = mstep.update_alpha_hyper(
-            events, result["p_hyper"], edge_list, anchor_calc, kernel, T
-        )
-
-    return mu, alpha_pairwise, alpha_hyper
+    res = run_em(
+        events, T, n_nodes, edge_list, kernel, anchor_calc,
+        mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+        n_iter=n_iter, lambda_l1=lambda_l1, tensor=tensor, hyper_update="als",
+    )
+    return res.mu, res.alpha_pairwise, res.alpha_hyper
 
 
 # =============================================================================
@@ -130,7 +94,8 @@ for name, cfg in SCENARIOS.items():
         events, T=T, n_nodes=N_NODES, kernel=kernel, anchor_calc=anchor_calc,
         n_iter=N_ITER, lambda_l1=0.001, seed=0
     )
-    L1 = loglik_under(events, T, mu_p, alpha_p, {}, kernel, anchor_calc)
+    L1 = log_likelihood(events, T, mu_p, alpha_p, {}, [],
+                        kernel, anchor_calc, "closed_form")
     n_params_M1 = N_NODES + int(np.sum(alpha_p > 1e-3))
 
     # Fit full HTH (M2)
@@ -138,7 +103,8 @@ for name, cfg in SCENARIOS.items():
         events, T, N_NODES, EDGE_LIST, kernel, anchor_calc,
         n_iter=N_ITER, lambda_l1=0.001, seed=0
     )
-    L2 = loglik_under(events, T, mu_h, alpha_ph, alpha_hyp, kernel, anchor_calc)
+    L2 = log_likelihood(events, T, mu_h, alpha_ph, alpha_hyp, EDGE_LIST,
+                        kernel, anchor_calc, "closed_form")
     n_params_M2 = N_NODES + int(np.sum(alpha_ph > 1e-3)) + len(EDGE_LIST)
 
     delta_L = L2 - L1

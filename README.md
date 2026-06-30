@@ -9,8 +9,9 @@
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/Tests-30%2F30_passing-brightgreen?logo=pytest)](tests/)
-[![Experiments](https://img.shields.io/badge/Experiments-11%2F11_validated-blueviolet)](experiments/)
+[![Tests](https://img.shields.io/badge/Tests-passing-brightgreen?logo=pytest)](tests/)
+[![Experiments](https://img.shields.io/badge/Experiments-15--experiment_suite-blueviolet)](experiments/)
+[![Simulator](https://img.shields.io/badge/Simulator-time--rescaling_validated-success)](tests/test_simulator_validity.py)
 [![Real Data](https://img.shields.io/badge/Real_Data-CRCNS_ret--1-orange)](https://crcns.org/data-sets/retina/ret-1)
 
 ---
@@ -25,155 +26,141 @@
 
 This repository presents a **complete inference framework** for recovering higher-order (hyperedge) interaction structure in multi-cellular systems from asynchronous event-time data. We introduce the **Hyperedge-triggered Hawkes (HTH) process**, in which the firing intensity of each cell depends not only on pairwise excitation from individual neighbours but also on the **simultaneous co-activation of cell groups** within a short temporal window.
 
-We derive a **closed-form EM algorithm** with a novel piecewise compensator, validate it through **10 controlled experiments on synthetic data**, and apply the framework to **real multi-electrode array recordings of mouse retinal ganglion cells** (CRCNS ret-1 dataset). The real-data analysis reveals suggestive but not decisive evidence for higher-order interactions, honestly characterising both the model's strengths and its limitations.
+We derive a **closed-form EM algorithm** with a piecewise compensator, build a **time-rescaling–validated event simulator**, and stress-test the method through a **15-experiment synthetic suite** with known ground truth. Under a correct sampler the maximum-likelihood estimator is **near-unbiased** (hyperedge weight recovered within ~6%); the genuine difficulty is not point-estimate bias but **pairwise↔hyperedge identifiability**. We characterise that limitation honestly — via calibration of a selective-inference procedure, a candidate-generation diagnostic, and a non-trivial interaction baseline — and apply the framework to **real multi-electrode recordings of mouse retinal ganglion cells** (CRCNS ret-1), where the evidence for higher-order interactions is **suggestive but, by BIC, not decisive**.
 
 ---
 
 ## 🔬 Research Contributions
 
-This work establishes four principal results:
-
 ### 1️⃣ A Tractable Intensity Model for Higher-Order Interactions
 
-We define a **pattern-completion anchor** using the max operator over member firing times within a temporal window Delta. This yields reusable anchor semantics and a tractable likelihood, enabling closed-form parameter updates that standard numerical optimisation approaches cannot match.
+We define a **pattern-completion anchor** using the `max` operator over member firing times within a temporal window `Delta`. Combined with an exponential kernel, this yields a tractable likelihood with a **closed-form EM update** for every parameter — baseline rates, pairwise weights, and hyperedge weights — together with a **piecewise compensator** that integrates each anchor only until the next completion event (rather than naively to `T`). Convergence is mode-stable: 20/20 random initialisations reach the same optimum within `std = 0.001` nats (Experiment 3).
 
-### 2️⃣ Discovery of the Piecewise Compensator Correction
+### 2️⃣ A Correct, Validated Simulator — and What It Revealed
 
-During development, we identified and resolved a **systematic bias** in the naive compensator formulation. The standard approach — integrating each anchor's kernel contribution from its activation time to T — overcounts when multiple completions occur. Our **piecewise compensator**, which integrates each anchor only until the next completion event, eliminates this bias and is validated by a +8.64 nat likelihood gain in controlled experiments (Experiment 7).
+The HTH event simulator uses **Ogata thinning** in which a single upper bound, recomputed from the post-jump intensity at each accepted event, both generates the candidate inter-arrival **and** serves as the acceptance denominator. This passes the **time-rescaling Kolmogorov–Smirnov test** (rescaled inter-event increments are `Exp(1)`; `p = 0.73` in the discriminating high-intensity regime), and a regression gate (`tests/test_simulator_validity.py`) locks this in.
 
-### 3️⃣ Empirical Phase-Transition Characterisation
+A key methodological finding: an earlier, non-standard thinning produced an apparent **−22% "systematic bias"** on the hyperedge weight. With the corrected sampler, that bias **largely disappears** — recovery is near-unbiased (**−6.5%** across 25 datasets, Experiment 1b). The lesson, baked into the test suite, is that structural sanity checks (events sorted, in-window) cannot detect an invalid sampler; a distributional check (time-rescaling) is required.
 
-We demonstrate that the system undergoes a **sharp phase transition** from stable dynamics to cascade bursts as hyperedge strength increases. The transition occurs when the spectral radius rho(A) of the combined interaction matrix crosses 1. We characterise a systematic 24% offset between the inferred and true critical thresholds, trace its origin to the EM-thinning interaction, and show it is **correctable via calibration** (Experiments 1b, 4).
+### 3️⃣ Honest Characterisation of the Identifiability Limit
+
+With bias no longer the story, the real limitation is that **pairwise and hyperedge contributions are hard to separate** when coupled nodes co-fire. We quantify this from three angles:
+
+- **Calibration (Experiment 13).** A naive likelihood-ratio test that selects and tests a hyperedge on the same data has a Type-I error of **72%** (target 5%). Sample-splitting + a chi-bar-squared test reduces this to **15%** — better, but still inflated. A **pure-Poisson control** (no pairwise structure) collapses the split FPR to **2%**, isolating the residual as a genuine **pairwise↔hyperedge confound** rather than a general miscalibration.
+- **Weak detectability (Experiment 14).** A genuine hyperedge is *nominated* by the candidate pipeline 79–92% of the time and recovered **near-unbiased once found** (−1% to −5%), but it is only clearly *detectable* at higher strength (`dL` rises 0.5 → 2.5 → 5.5 as `alpha` grows 0.4 → 0.6 → 0.8). The bottleneck is detectability, not recall or bias.
+- **Inconclusive real data (Experiment 10).** On the retinal recordings, BIC favours the simpler pairwise model; the framework does **not** over-claim.
+
+Fully honest hyperedge inference therefore calls for explicit **component separation** (Bayesian latent-branching / filtered MCMC with simulation-based null calibration) — scoped as future work.
 
 ### 4️⃣ Independent Copula-Based Verification
 
-We validate inferred hyperedge structure using an **entirely independent statistical method**: copula-based upper-tail dependence analysis. The HTH model produces significantly higher tail dependence than the pairwise-only null (p < 0.001), confirming that hyperedge interactions leave a detectable signature in the joint distribution of inter-event times **outside of the EM framework** (Experiment 5).
+We validate inferred hyperedge structure with an **entirely separate statistical method**: copula-based upper-tail dependence. HTH data exhibit significantly higher upper-tail dependence between member nodes than a pairwise-only null (`tau_U`: 0.167 vs 0.037; Welch `t = 5.80`, **`p = 0.0004`**), confirming that hyperedge interactions leave a detectable signature **outside the EM framework** (Experiment 5).
 
 ---
 
 ## 📊 Experimental Results: Synthetic Data
 
-> All synthetic experiments use data with known ground truth, enabling rigorous quantitative evaluation.
+> All synthetic experiments use data with known ground truth from the **time-rescaling–validated** simulator, enabling rigorous quantitative evaluation.
 
-| # | Experiment | Question Addressed | Finding |
-|:-:|:-----------|:-------------------|:--------|
-| 1 | Recovery Demo | Can EM recover true parameters? | 5/5 parameters within 7% error |
-| 1b | Recovery Robustness | Is recovery stable across datasets? | Pairwise error < 5%; hyperedge bias -22% (systematic, correctable) |
-| 2 | Regularisation Path | Can L1 distinguish true edges from decoys? | True edge persists; AIC/BIC agree on lambda* = 1.87 |
-| 3 | Convergence | Does EM depend on initialisation? | 20/20 random inits converge to same optimum (std = 0.004 nats) |
-| 4 | Phase Transition | Can we detect the critical threshold? | rho(A) crosses 1; offset matches recovery bias |
-| 5 | Copula Validation | Independent verification? | p < 0.001 vs null; tail dependence clearly elevated |
-| 6 | 3-Node Hyperedge | Generalisation to higher order? | 9% error; 4/4 decoys rejected (suppressed by 2-4 orders of magnitude) |
-| 7 | Likelihood Gap | Falsifiability? | Delta L = +8.64 when true; Delta L = -0.03 when absent |
-| 8 | Delta Sensitivity | Is Delta identifiable from data? | Log-likelihood sharply peaked at true Delta |
-| 9 | Scalability | Computational cost? | Empirical t ~ n^2.03, matches theoretical O(n^2) |
+| #  | Experiment | Question | Finding |
+|:--:|:-----------|:---------|:--------|
+| 1  | Recovery Demo | Can EM recover true parameters (single seed)? | 4/5 within ~7%; `a[2→0]` off in one draw (see 1b for the distribution) |
+| 1b | Recovery Robustness | Is recovery stable across datasets? | Pairwise errors < 5%; hyperedge weight **near-unbiased, −6.5%** over 25 seeds |
+| 2  | Regularisation Path | Can L1 distinguish true edges from decoys? | True edge `(0,1)` persists; AIC **and** BIC optimal at `lambda* = 10.0`, where only the true edge survives |
+| 3  | Convergence | Sensitivity to initialisation? | 20/20 random inits → same optimum, `std = 0.001` nats |
+| 4  | Strength Sensitivity | How do intensity & inferred coupling respond to hyperedge strength? | Burst frequency rises **smoothly** (no cascade/divergence); `rho` is a reference quantity, **not** a criticality threshold for this non-accumulating model |
+| 5  | Copula Validation | Independent verification? | `tau_U` elevated vs null, `p = 0.0004` |
+| 6  | 3-Node Hyperedge | Generalisation to order 3? | True `(0,1,2)` recovered **0.499 vs 0.600**; dominant decoys suppressed (two small residual false positives ≈ 0.05–0.08) |
+| 7  | Likelihood Gap | Falsifiability? | `dL = +4.59` (BIC +2.86) when present; `dL = 0.00` (BIC −6.18) when absent |
+| 8  | Delta Sensitivity | Is `Delta` identifiable? | Log-likelihood peaks at the true `Delta = 0.5` |
+| 9  | Scalability | Computational cost? | Empirical `t ~ n^1.95` (asymptote), matching theoretical `O(n^2)` |
+| 11 | Bias vs Timescale | Does kernel timescale `beta` drive bias? | Bias **non-monotone** (−7% → +14% → −26%); the systematic effect is on **variance**, not bias |
+| 12 | CP Rank Selection | Can we recover the hyperedge-tensor rank? | **AIC + coverage-angle elbow select the true rank** (R\*=2 and R\*=3); BIC under-selects to R=1 |
+| 13 | Selective-Inference Calibration | Is hyperedge "discovery" calibrated? | naive FPR **72%**, split **15%**, pure-Poisson control **2%** (target 5%) |
+| 14 | Identification Diagnostic | Recall vs identification? | Nomination 79–92%; near-unbiased once found; limited by **detectability** |
+| 15 | Interaction Baseline | Does the *mechanism* matter vs a 3-way interaction term? | HTH wins at **every** positive strength, margin grows with strength; neither invents structure on null data |
 
 ---
 
 ## 🧪 Real-World Data Analysis (Experiment 10)
 
-We apply the HTH inference framework to real neural recordings to evaluate its practical effectiveness and honestly characterise its limitations. This section follows the standard structure of empirical model validation: model fit, baseline comparison, interpretation, and limitation.
+We apply the HTH framework to real neural recordings to evaluate practical effectiveness and honestly characterise its limits, following the standard structure of empirical model validation.
 
 ### Data Source
 
-Multi-electrode array recordings of 7 simultaneously observed mouse retinal ganglion cells under binary white noise stimulation (CRCNS ret-1 dataset, Zhang and Meister, Harvard University, 2008). We extract a 40-second window containing 3,759 spike events across neurons with firing rates ranging from 3 Hz to 29 Hz.
+Multi-electrode array recordings of 7 simultaneously observed mouse retinal ganglion cells under binary white-noise stimulation (CRCNS ret-1, Zhang & Meister, 2008). We analyse a 40-second window containing **3,759 spikes** across neurons firing at 3–29 Hz.
 
 ### Model Fit
 
-We fit both a pairwise-only Hawkes model and the full HTH model with 6 candidate hyperedges to the neural spike train data:
-
 | Model | log-likelihood | Parameters |
-|-------|---------------|------------|
-| Pairwise-only Hawkes | 6760.2 | 41 |
-| Full HTH | 6780.9 | 47 |
+|-------|---------------:|-----------:|
+| Pairwise-only Hawkes | 6757.31 | 41 |
+| Full HTH (6 candidate hyperedges) | 6779.84 | 47 |
 
-The HTH model achieves a likelihood gain of Delta L = +20.6 nats over the pairwise-only baseline, exceeding the chi-squared significance threshold of 1.92 (p < 0.05 for 6 additional degrees of freedom). Five of six candidate hyperedges survive with weights between 0.06 and 0.35.
+The full-data likelihood gain is `dL = +22.5` nats. **This full-data fit is reported for reference only:** the candidate hyperedges are selected and tested on the same data, so the accompanying likelihood-ratio test is double-dipping and is flagged **invalid** in the output.
 
-### Baseline Comparison
+### Honest Selective Inference (select on first half, test on held-out half)
 
-Compared to a pairwise-only Hawkes process, the HTH model captures additional temporal co-activation structure and improves the likelihood, suggesting the presence of higher-order dynamics beyond pairwise excitation. However, BIC penalises the additional model complexity (BIC difference = -8.1, favouring the simpler pairwise model). This tension between likelihood and BIC indicates that the evidence for group interactions in this 40-second window is **suggestive but not decisive**.
+Selecting candidates on the first 20 s and testing on the held-out 20 s:
 
-### Interpretation
+- held-out `dL = +8.10`, chi-bar-squared `p = 2.85e-05`;
+- **held-out BIC difference = −28.9** (favours pairwise-only).
 
-The results reveal several scientifically meaningful patterns:
+### Verdict
 
-- **Neuron 0 acts as a hub node**, receiving strong pairwise excitation from neurons 3, 4, and 6 (alpha > 0.4). This is consistent with the known architecture of retinal ganglion cell networks, where certain cell types receive convergent input from multiple presynaptic partners.
-- **The strongest surviving hyperedge is (0, 3)** with alpha = 0.348, suggesting that the co-activation of neurons 0 and 3 triggers additional downstream effects beyond what their individual pairwise contributions explain.
-- **One candidate hyperedge (0, 5) produces an anomalously large weight** (alpha = 3.73) despite neuron 5 having only 125 spikes in the window. This is flagged as a sparse-data artifact: the low spike count means the compensator integral is small, inflating the weight estimate. This finding validates the importance of sample size diagnostics in real-data applications.
+The split p-value is a **diagnostic, not calibrated evidence**: retinal data has strong pairwise coupling — exactly the regime where Experiment 13 shows the split false-positive rate is inflated (~15% vs ~5% nominal; ~2% once pairwise structure is removed). **We therefore defer to BIC, which favours the pairwise-only model.** Overall the evidence for group interactions in this window is **suggestive but not decisive**.
 
-### Limitation
+### Interpretation & Caveats
 
-The deviation between likelihood-based and BIC-based model selection indicates that the standard HTH model, while capturing meaningful structure, **does not fully account for the complexity of the observed neural activity**. Several factors contribute to this gap:
+- **Neuron 0 acts as a hub**, and every surviving candidate is a pair *containing neuron 0* — consistent with hub-driven pairwise structure being partially re-expressed as hyperedges (the pairwise↔hyperedge confound of Experiments 13–14).
+- **Candidate `(0,5)` produces an anomalously large weight** (`alpha = 3.73`) despite neuron 5 having only 125 spikes; flagged as a **sparse-data artifact** (a small compensator inflates the estimate), underscoring the need for sample-size diagnostics.
+- **Window length.** 40 s was chosen to keep the `O(n^2)` cost tractable; a longer window would give BIC more power to support (or reject) genuine hyperedge structure.
 
-1. **Heterogeneous firing rates.** The 10-fold variation in firing rates across neurons (3 Hz to 29 Hz) violates the implicit assumption of comparable baseline intensities. A model with node-specific kernel parameters could improve fit.
-2. **Stimulus-driven co-activation.** The binary white noise stimulus drives correlated responses that may mimic hyperedge interactions without reflecting true synaptic group coupling. Disentangling stimulus-driven from network-driven co-activation requires stimulus-conditional modelling.
-3. **Window length.** The 40-second analysis window was chosen to keep computation tractable (O(n^2) cost). Longer windows would provide more statistical power for BIC to support genuine hyperedge structure.
-
-This honest characterisation of model limitations is itself a scientific contribution: **the framework does not hallucinate decisive structure when evidence is marginal** — precisely the falsifiability property validated in Experiment 7 on synthetic data. The model is useful, but not perfect — and knowing when to trust it is as important as the model itself.
+This honest characterisation is itself a contribution: **the framework does not hallucinate decisive structure when evidence is marginal** — the falsifiability property validated in Experiment 7.
 
 ---
 
 ## 🖼️ Selected Figures
 
-### Recovery Distribution Across 25 Independent Datasets
-
+### Recovery Across 25 Independent Datasets
 ![Recovery Robustness](experiments/exp1b_recovery_robustness.png)
-
-> Pairwise parameters cluster tightly around their true values (< 5% error). The hyperedge weight shows a systematic -22% bias — consistent across seeds and traceable to a single mechanism.
+> Pairwise parameters cluster tightly (< 5% error). Under the corrected simulator the hyperedge weight is **near-unbiased (−6.5%)**; the residual difficulty is identifiability/variance, not a systematic bias.
 
 ### Falsifiability: Does the Data Demand a Hyperedge Term?
-
 ![Likelihood Gap](experiments/exp7_likelihood_gap.png)
+> When the true model contains a hyperedge, `dL = +4.59` (BIC +2.86). When it does not, `dL = 0.00` (BIC −6.18). The method does not invent structure.
 
-> **Left:** When the true model contains a hyperedge, Delta L = +8.64, far exceeding the significance threshold. **Right:** BIC confirms the decision: +10.97 for the true hyperedge, -6.27 against the spurious one. The method does not hallucinate structure.
-
-### Phase Transition in Spectral Radius
-
-![Phase Transition](experiments/exp4_phase.png)
-
-> As hyperedge strength grows, the spectral radius rho(A) crosses the critical threshold rho = 1, triggering a transition from stable recovery to cascade bursts.
+### Interaction-Strength Sensitivity (not a phase transition)
+![Strength Sensitivity](experiments/exp4_phase.png)
+> Burst frequency rises **smoothly** with hyperedge strength — no cascade or divergence. Because the hyperedge uses a single, non-accumulating most-recent anchor, the process does not go super-critical; the `rho = 1` line is a reference, not a criticality threshold.
 
 ### Copula-Based Independent Verification
-
 ![Copula Validation](experiments/exp5_copula.png)
+> Upper-tail dependence is significantly elevated in HTH vs the pairwise-only null (`p = 0.0004`), independent of the EM engine.
 
-> Upper-tail dependence is significantly elevated in the HTH model relative to the pairwise-only null (p = 0.0006), providing evidence for hyperedge interactions that is completely independent of the EM inference engine.
+### Selective-Inference Calibration
+![Calibration](experiments/exp13_calibration.png)
+> Naive select-and-test: 72% false positives. Sample-split + chi-bar-squared: 15%. Pure-Poisson control: 2% — isolating the residual as a pairwise↔hyperedge confound.
 
 ### Delta Is Identifiable from the Data
-
 ![Delta Sensitivity](experiments/exp8_delta_sensitivity.png)
-
-> **Left:** Parameter recovery is best at the true Delta = 0.5. **Right:** Log-likelihood is sharply peaked at the truth, validating the grid-search strategy.
+> Log-likelihood is peaked at the true `Delta = 0.5`, validating the grid-search strategy.
 
 ### 3-Node Hyperedge Recovery
-
 ![3-Node Hyperedge](experiments/exp6_3node_hyperedge.png)
+> The true 3-node hyperedge `(0,1,2)` is recovered at 0.499 vs true 0.600; dominant decoys are suppressed (two small residual false positives remain — a visible trace of the identifiability limit).
 
-> The true 3-node hyperedge (0,1,2) is recovered at 0.272 vs true 0.300 (9% error), while all four decoy candidates are suppressed below 0.01.
+### CP Rank Selection
+![CP Rank Selection](experiments/exp12_rank_sweep.png)
+> AIC and the subspace coverage-angle elbow recover the true hyperedge-tensor rank; BIC is conservative and under-selects.
 
 ### Computational Scalability
-
 ![Scalability](experiments/exp9_scalability.png)
-
-> Wall-clock time per EM iteration scales as n^2.03, matching the theoretical O(n^2) prediction.
-
-### Regularisation Path and Model Selection
-
-![Regularisation Path](experiments/exp2_regpath.png)
-
-> The true edge (red) persists across the entire penalty range while decoys (grey) are progressively eliminated. AIC and BIC agree on the optimal penalty lambda* = 1.87.
-
-### EM Convergence from Random Initialisations
-
-![Convergence](experiments/exp3_convergence.png)
-
-> 20 independent runs from random starting points all converge to the same log-likelihood within std = 0.004 nats.
+> Wall-clock time per EM iteration scales as `n^1.95` at large `n`, matching the theoretical `O(n^2)` prediction.
 
 ### Real Data: Mouse Retinal Ganglion Cells
-
 ![Real Data](experiments/exp10_realdata.png)
-
-> **Left:** Spike raster of 7 simultaneously recorded neurons with firing rates from 3 to 29 Hz. **Centre:** Inferred pairwise interaction matrix reveals neuron 0 as a hub node. **Right:** Candidate hyperedge weights — 5 of 6 candidates survive, but BIC does not support the added complexity (Delta L = +20.6, BIC diff = -8.1). The framework honestly reports suggestive but not decisive evidence, demonstrating that it does not over-claim when data is ambiguous.
+> Left: spike raster (7 neurons, 3–29 Hz). Centre: inferred pairwise matrix with neuron 0 as a hub. Right: candidate hyperedge weights — full-data `dL = +22.5`, but held-out **BIC = −28.9** favours pairwise-only. The framework honestly reports suggestive-but-not-decisive evidence.
 
 ---
 
@@ -181,29 +168,29 @@ This honest characterisation of model limitations is itself a scientific contrib
 
 ### Intensity Function
 
-The conditional intensity for node n at time t given history H_t:
-
     lambda_n(t) = mu_n
                + sum_{j: t_j < t}  alpha_{n_j -> n} * phi(t - t_j)
                + sum_{e containing n}  alpha_e * phi(t - t_anchor(e, t))
 
-where phi(tau) = exp(-beta * tau) is the exponential decay kernel.
+where `phi(tau) = exp(-beta * tau)`.
 
 ### Pattern-Completion Anchor
 
     t_anchor(e, t) = max { t_c < t : for all v in e, v has fired in [t_c - Delta, t_c] }
 
+The most-recent (max) anchor is non-accumulating: a hyperedge contributes at most one decaying bump at a time, which keeps the intensity bounded (no linear-Hawkes-style super-criticality) and makes the compensator closed-form.
+
 ### CP Tensor Decomposition
 
     alpha_e = sum_{r=1}^{R} product_{v in e} F[v, r]
 
-reducing the parameter count from O(N^K) to O(NR).
+reducing the hyperedge parameter count from `O(N^K)` to `O(NR)`.
 
-### Piecewise Compensator (Key Contribution)
+### Piecewise Compensator
 
     C_e = sum_{k=1}^{M} (1/beta)(1 - exp(-beta(t_{k+1} - t_k)))
 
-where t_1 < t_2 < ... < t_M are the ordered completion times and t_{M+1} = T. This corrects the systematic bias of the naive sum-to-T integral.
+where `t_1 < ... < t_M` are the ordered completion times and `t_{M+1} = T`. Integrating each anchor only until the next completion (rather than to `T`) gives the exact compensator for the most-recent-anchor intensity.
 
 ---
 
@@ -213,23 +200,26 @@ where t_1 < t_2 < ... < t_M are the ordered completion times and t_{M+1} = T. Th
     |
     |-- models/
     |   |-- kernel.py               Exponential kernel + HyperedgeAnchor
-    |   `-- tensor_param.py         CP decomposition for hyperedge weights
+    |   |-- tensor_param.py         CP decomposition for hyperedge weights
+    |   `-- likelihood.py           Closed-form log-likelihood + piecewise compensator
     |
     |-- inference/
     |   |-- e_step.py               Soft responsibility assignment (3-source)
-    |   |-- m_step.py               Closed-form M-step with piecewise compensator
-    |   `-- candidate_filter.py     Two-stage hyperedge candidate generation
+    |   |-- m_step.py               Closed-form M-step (pairwise + ALS hyperedge)
+    |   |-- em.py                   EM driver (hyper_update="als" by default)
+    |   `-- candidate_filter.py     Hyperedge candidate generation
     |
     |-- simulation/
-    |   |-- simulator.py            Ogata-thinning HTH event simulator
-    |   `-- data_loader.py          CSV import/export for event streams
+    |   |-- simulator.py            Ogata-thinning HTH simulator (time-rescaling validated)
+    |   `-- data_loader.py          CSV import/export (explicit observation window T)
     |
-    |-- experiments/                11 experiments + 10 publication-grade figures
-    |-- tests/                      7 unit-test files (30 sub-tests)
-    |-- data/                       CRCNS ret-1 neural recordings (not tracked)
+    |-- experiments/                Experiments 1-15 + publication figures
+    |-- tests/                      Unit tests + test_simulator_validity.py (time-rescaling gate)
+    |-- golden/                     Golden-master snapshots (reference values)
+    |-- data/                       CRCNS ret-1 recordings (NOT tracked; download separately)
     |
-    |-- run_tests.py                Unified test runner
     |-- run_all.py                  One-command full pipeline reproduction
+    |-- snapshot_golden.py          Freeze/compare golden-master numbers
     |-- requirements.txt            Python dependencies
     `-- README.md                   This file
 
@@ -241,76 +231,69 @@ where t_1 < t_2 < ... < t_M are the ordered completion times and t_{M+1} = T. Th
 
     pip install -r requirements.txt
 
-### Run All Unit Tests
+### Validate the Simulator (recommended first)
 
-    python run_tests.py
+    python tests/test_simulator_validity.py
+    # Expected: Both time-rescaling gates PASS.
 
-Expected output: 7/7 test files passed, 30/30 sub-tests.
-
-### Reproduce the Full Experimental Pipeline
+### Reproduce the Full Pipeline
 
     python run_all.py
 
-This executes all 11 experiments and regenerates all 10 figures. Total runtime is approximately 90-120 minutes on a single CPU core. Experiment 10 (real data) requires the CRCNS ret-1 dataset to be downloaded separately (see below).
+Runs the full experiment suite (1–15, including the calibration control and rank sweep) and regenerates all figures. Total runtime is approximately **90–100 minutes** on a single CPU core. Experiment 10 requires the CRCNS ret-1 dataset (see below).
+
+### Freeze / Check Golden Master
+
+    python snapshot_golden.py
 
 ### Real Data Setup
 
 1. Register for a free account at https://crcns.org
 2. Download the ret-1 dataset from https://crcns.org/data-sets/retina/ret-1
-3. Extract into the project directory:
-
-        mkdir data
-        # extract crcns_ret-1.zip into data/
-
-4. Run the real-data experiment:
+3. Extract into `data/`, then:
 
         python experiments/exp10_realdata.py
         python experiments/exp10_plot.py
 
 ### Apply to Custom Data
 
-Prepare a CSV file with columns time and node:
+Prepare a CSV with columns `time` and `node`:
 
     time,node
     0.123,0
     0.456,2
     0.789,1
 
-Then:
+Then (note: the observation window `T` must be passed explicitly — it is **not** inferred from the last event, which would truncate the compensator):
 
     from simulation.data_loader import load_events_from_csv, summarise_events
-    events, n_nodes, T = load_events_from_csv("myevents.csv")
+    events, n_nodes, T = load_events_from_csv("myevents.csv", T=100.0)
     summarise_events(events, n_nodes, T)
 
 ---
 
 ## 🔭 Open Problems and Future Directions
 
-1. **Bias Correction.** The systematic -22% bias on alpha_hyper (Exp 1b) and the corresponding 24% offset in spectral radius (Exp 4) are consistent and correctable. An analytical correction factor, calibrated against simulation, would bring the inferred hyperedge weights within Monte Carlo error of their true values.
-
-2. **Stimulus-Conditional Modelling.** The real-data analysis (Exp 10) reveals that stimulus-driven co-activation may mimic hyperedge interactions. Extending the model to condition on external covariates would disentangle network-driven from stimulus-driven structure.
-
-3. **Single-Use Anchors.** The current model uses reusable anchors for likelihood tractability. A biologically-motivated single-use variant — in which each pattern completion is consumed and cannot trigger further downstream events — would more accurately model refractory dynamics.
-
-4. **Scalability.** The prototype scales as O(n^2) in pure Python. Vectorised NumPy implementations or GPU acceleration could extend applicability to datasets with 10^4 to 10^5 events.
-
-5. **Node-Specific Kernels.** The real-data analysis reveals a 10-fold variation in firing rates across neurons. Allowing node-specific decay rates beta_n would improve model flexibility without increasing the parameter count substantially.
+1. **Component separation (the core MPhil direction).** The pairwise↔hyperedge identifiability limit — calibration inflation (Exp 13), weak detectability (Exp 14), inconclusive real-data BIC (Exp 10) — is not removable by point-estimation. A Bayesian **latent-branching / filtered-MCMC** treatment that infers per-event source posteriors, with **simulation-based (ABC) null calibration**, would deliver honest hyperedge inference with uncertainty quantification.
+2. **Stimulus-conditional modelling.** Stimulus-driven co-activation may mimic hyperedge interactions; conditioning on external covariates would disentangle network-driven from stimulus-driven structure.
+3. **Single-use anchors.** A biologically motivated single-use variant (each completion consumed once) would better model refractory dynamics.
+4. **Scalability.** The prototype is `O(n^2)` in Python; vectorised/GPU implementations could reach `10^4–10^5` events.
+5. **Node-specific kernels.** The 10-fold firing-rate variation in real data motivates node-specific decay rates `beta_n`.
 
 ---
 
 ## 📚 References
 
-- Veen, A. & Schoenberg, F. P. (2008). Estimation of space-time branching process models in seismology using an EM-type algorithm. *Journal of the American Statistical Association*, 103(482), 614-624.
-- Kolda, T. G. & Bader, B. W. (2009). Tensor decompositions and applications. *SIAM Review*, 51(3), 455-500.
-- Geenens, G., Charpentier, A. & Paindaveine, D. (2017). Probit transformation for nonparametric kernel estimation of the copula density. *Bernoulli*, 23(3), 1848-1873.
-- Ogata, Y. (1981). On Lewis' simulation method for point processes. *IEEE Transactions on Information Theory*, 27(1), 23-31.
+- Veen, A. & Schoenberg, F. P. (2008). Estimation of space-time branching process models in seismology using an EM-type algorithm. *Journal of the American Statistical Association*, 103(482), 614–624.
+- Kolda, T. G. & Bader, B. W. (2009). Tensor decompositions and applications. *SIAM Review*, 51(3), 455–500.
+- Geenens, G., Charpentier, A. & Paindaveine, D. (2017). Probit transformation for nonparametric kernel estimation of the copula density. *Bernoulli*, 23(3), 1848–1873.
+- Ogata, Y. (1981). On Lewis' simulation method for point processes. *IEEE Transactions on Information Theory*, 27(1), 23–31.
 - Zhang, Y. & Meister, M. (2008). Multi-electrode recordings from retinal ganglion cells. CRCNS.org. http://dx.doi.org/10.6080/K0RF5RZT
 
 ---
 
 <div align="center">
 
-**Zihan Xu**  · 2026
+**Zihan Xu** · 2026
 
 </div>
-

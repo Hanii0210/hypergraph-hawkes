@@ -6,6 +6,7 @@ def load_events_from_csv(
     path: str,
     time_col: str = "time",
     node_col: str = "node",
+    T: float = None,
     sort: bool = True,
 ):
     """
@@ -56,7 +57,15 @@ def load_events_from_csv(
         events.sort(key=lambda x: x[0])
 
     n_nodes = max_node + 1
-    T = max_time
+    if T is None:
+        raise ValueError(
+            "T (observation horizon) must be passed explicitly. Inferring "
+            "T = max(event time) truncates the compensator at the last event "
+            "and biases rate/alpha estimates. Pass the true recording window."
+        )
+    if T < max_time:
+        raise ValueError(f"T={T} is smaller than the last event time {max_time}.")
+    return events, n_nodes, T
     return events, n_nodes, T
 
 

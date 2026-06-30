@@ -27,6 +27,12 @@ EXPERIMENTS = [
     ("Exp 9   Scalability",                        "experiments/exp9_scalability.py"),
     ("Exp 10  Real neural data (CRCNS ret-1)",     "experiments/exp10_realdata.py"),
     ("Exp 11  Bias ablation (beta sweep)",          "experiments/exp11_bias_ablation.py"),
+    ("Exp 12a Generate CP-rank data (cached)",      "experiments/exp12_generate_data.py"),
+    ("Exp 12b CP rank selection sweep",             "experiments/exp12_rank_sweep.py"),
+    ("Exp 13a Calibration (pairwise null)",         "experiments/exp13_calibration.py"),
+    ("Exp 13b Calibration CONTROL (poisson)",       "experiments/exp13_calibration.py", ["40", "700", "poisson"]),
+    ("Exp 14  Identification diagnostic",           "experiments/exp14_identification_diagnostic.py"),
+    ("Exp 15  Interaction baseline",                "experiments/exp15_interaction_baseline.py"),
 ]
 
 PLOTS = [
@@ -41,17 +47,21 @@ PLOTS = [
     ("Plot 9   Scalability",            "experiments/exp9_plot.py"),
     ("Plot 10  Real neural data",                   "experiments/exp10_plot.py"),
     ("Plot 11  Bias ablation",                       "experiments/exp11_plot.py"),
+    ("Plot 12  CP rank selection",                   "experiments/exp12_plot.py"),
+    ("Plot 13  Calibration",            "experiments/exp13_plot.py"),
+    ("Plot 14  Identification diag.",   "experiments/exp14_plot.py"),
+    ("Plot 15  Interaction baseline",   "experiments/exp15_plot.py"),
 ]
 
 
-def run_script(label, path):
+def run_script(label, path, args=None):
     print(f"\n{'='*60}")
     print(f"  {label}")
     print(f"  {path}")
     print(f"{'='*60}")
     start = time.time()
     result = subprocess.run(
-        [sys.executable, path],
+        [sys.executable, path] + (args or []),
         cwd=os.path.dirname(os.path.abspath(__file__)),
         env={**os.environ, "MPLBACKEND": "Agg"},
     )
@@ -71,14 +81,14 @@ def main():
 
     # Phase 1: run all experiments
     print("\n\n>>> PHASE 1: Running experiments <<<\n")
-    for label, path in EXPERIMENTS:
-        ok, t = run_script(label, path)
+    for label, path, *rest in EXPERIMENTS:
+        ok, t = run_script(label, path, rest[0] if rest else None)
         results.append((label, ok, t))
 
     # Phase 2: generate all figures (non-interactive backend)
     print("\n\n>>> PHASE 2: Generating figures <<<\n")
-    for label, path in PLOTS:
-        ok, t = run_script(label, path)
+    for label, path, *rest in PLOTS:
+        ok, t = run_script(label, path, rest[0] if rest else None)
         results.append((label, ok, t))
 
     # Summary

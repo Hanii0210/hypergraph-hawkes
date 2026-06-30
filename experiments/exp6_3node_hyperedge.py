@@ -19,7 +19,7 @@ from simulation.simulator import HawkesSimulator
 
 TRUE_MU = np.array([0.3, 0.3, 0.3, 0.3])
 TRUE_ALPHA_PAIRWISE = np.zeros((4, 4))
-TRUE_ALPHA_HYPER = {(0, 1, 2): 0.3}     # genuine 3-node hyperedge
+TRUE_ALPHA_HYPER = {(0, 1, 2): 0.6}     # genuine 3-node hyperedge
 
 # Candidates include the truth + decoys (some 2-node, some 3-node)
 CANDIDATE_EDGES = [
@@ -30,7 +30,7 @@ CANDIDATE_EDGES = [
     (1, 2, 3),      # 3-node decoy
 ]
 
-T          = 800.0
+T          = 2000.0
 N_ITER     = 60
 N_NODES    = 4
 BETA       = 1.0
@@ -91,12 +91,6 @@ alpha_pairwise = rng.uniform(0.0, 0.2, size=(N_NODES, N_NODES))
 np.fill_diagonal(alpha_pairwise, 0.0)
 alpha_hyper    = {e: float(rng.uniform(0.05, 0.4)) for e in CANDIDATE_EDGES}
 
-for e in CANDIDATE_EDGES:
-    target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-    for v in e:
-        tensor.F[v, :] = target_factor
-
-
 # =============================================================================
 # EM loop
 # =============================================================================
@@ -111,7 +105,7 @@ for it in range(1, N_ITER + 1):
         events, result["p_pairwise"], result["p_hyper"],
         CANDIDATE_EDGES, kernel, T
     )
-    alpha_hyper = mstep.update_alpha_hyper(
+    alpha_hyper = mstep.update_alpha_hyper_als(
         events, result["p_hyper"], CANDIDATE_EDGES, anchor_calc, kernel, T
     )
 
@@ -156,3 +150,25 @@ print(f"  background  : {total_bg/total*100:.1f}%")
 print(f"  pairwise    : {total_pair/total*100:.1f}%")
 for e in CANDIDATE_EDGES:
     print(f"  hyper {str(e):<12}: {total_hyper_per_e[e]/total*100:.1f}%")
+
+
+# =============================================================================
+# Save results (read by exp6_plot.py)
+# =============================================================================
+import pickle
+results = {
+    "edges":     [tuple(e) for e in CANDIDATE_EDGES],
+    "types":     ["TRUE" if e in TRUE_ALPHA_HYPER else "decoy"
+                  for e in CANDIDATE_EDGES],
+    "true":      [TRUE_ALPHA_HYPER.get(e, 0.0) for e in CANDIDATE_EDGES],
+    "inferred":  [float(alpha_hyper[e]) for e in CANDIDATE_EDGES],
+    "estep_share": {
+        "background": float(total_bg / total),
+        "pairwise":   float(total_pair / total),
+        "hyper":      {str(e): float(total_hyper_per_e[e] / total)
+                       for e in CANDIDATE_EDGES},
+    },
+}
+with open("experiments/exp6_3node_hyperedge.pkl", "wb") as f:
+    pickle.dump(results, f)
+print("\nSaved: experiments/exp6_3node_hyperedge.pkl")

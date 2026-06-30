@@ -7,7 +7,9 @@ from models.kernel import ExponentialKernel, HyperedgeAnchor
 from models.tensor_param import HypergraphTensor
 from inference.e_step import EStep
 from inference.m_step import MStep
+from inference.em import run_em
 from simulation.simulator import HawkesSimulator
+from models.likelihood import log_likelihood
 
 
 # =============================================================================
@@ -64,8 +66,6 @@ for delta_test in tqdm(DELTA_GRID, desc="delta sweep"):
     anchor_test = HyperedgeAnchor(delta=delta_test)
 
     tensor = HypergraphTensor(n_nodes=N_NODES, rank=3, seed=0)
-    estep  = EStep(kernel, anchor_test)
-    mstep  = MStep(n_nodes=N_NODES, tensor=tensor, lambda_l1=0.001)
 
     rng = np.random.default_rng(seed=2026)
     mu             = rng.uniform(0.1, 0.5, size=N_NODES)
@@ -73,41 +73,20 @@ for delta_test in tqdm(DELTA_GRID, desc="delta sweep"):
     np.fill_diagonal(alpha_pairwise, 0.0)
     alpha_hyper    = {e: float(rng.uniform(0.05, 0.4)) for e in EDGE_LIST}
 
-    for e in EDGE_LIST:
-        target_factor = alpha_hyper[e] ** (1.0 / (len(e) * tensor.rank))
-        for v in e:
-            tensor.F[v, :] = target_factor
+    # P8.2: unified EM driver (identical ops to the former hand-rolled loop:
+    # E-step -> update_mu -> update_alpha_pairwise -> update_alpha_hyper_als).
+    res = run_em(events, T, N_NODES, EDGE_LIST, kernel, anchor_test,
+                 mu0=mu, alpha_pairwise0=alpha_pairwise, alpha_hyper0=alpha_hyper,
+                 n_iter=N_ITER, lambda_l1=0.001, tensor=tensor, hyper_update="als")
+    mu, alpha_pairwise, alpha_hyper = res.mu, res.alpha_pairwise, res.alpha_hyper
 
-    for _ in range(N_ITER):
-        result = estep.compute(events, mu, alpha_pairwise, alpha_hyper, EDGE_LIST)
-        mu = mstep.update_mu(events, result["p_background"], T)
-        alpha_pairwise = mstep.update_alpha_pairwise(
-            events, result["p_pairwise"], result["p_hyper"],
-            EDGE_LIST, kernel, T
-        )
-        alpha_hyper = mstep.update_alpha_hyper(
-            events, result["p_hyper"], EDGE_LIST, anchor_test, kernel, T
-        )
-
-    # Log-likelihood under fitted parameters with this Delta
-    sim_check = HawkesSimulator(
-        mu, alpha_pairwise, alpha_hyper, kernel, anchor_test
-    )
-    log_lam_sum = 0.0
-    for i, (t_i, n_i) in enumerate(events):
-        history = events[:i]
-        lam = sim_check._intensity(t_i, history)
-        if lam[n_i] > 0:
-            log_lam_sum += np.log(lam[n_i])
-
-    grid = np.linspace(0, T, 200)
-    total_int = 0.0
-    for k in range(len(grid) - 1):
-        t_mid = 0.5 * (grid[k] + grid[k+1])
-        history = [(t, n) for t, n in events if t < t_mid]
-        lam = sim_check._intensity(t_mid, history)
-        total_int += float(lam.sum()) * (grid[k+1] - grid[k])
-    logL = log_lam_sum - total_int
+    # Log-likelihood under fitted parameters with this Delta.
+    # P8: canonical closed-form likelihood (exact piecewise compensator),
+    # replacing the legacy 200-point Riemann grid for consistency with
+    # exp7 / exp10 / exp12 / exp13. Uses anchor_test so the compensator
+    # reflects the Delta being evaluated.
+    logL = log_likelihood(events, T, mu, alpha_pairwise, alpha_hyper,
+                          EDGE_LIST, kernel, anchor_test, "closed_form")
 
     print(f"{delta_test:>7.2f}  {mu[0]:>7.4f}  {mu[1]:>7.4f}  "
           f"{alpha_pairwise[2,0]:>9.4f}  {alpha_hyper[(0,1)]:>12.4f}  "

@@ -31,7 +31,7 @@ ax.plot(alpha_grid, rho_inf,
         label=r"$\rho(A)$ from inferred params")
 ax.axhline(1.0,
            color="black", linestyle="--", linewidth=1.5,
-           label=r"stability threshold $\rho = 1$")
+           label=r"reference line $\rho = 1$ (not a criticality threshold)")
 
 # Mark where inferred crosses 1
 crossing_idx = np.argmin(np.abs(rho_inf - 1.0))
@@ -41,7 +41,7 @@ ax.axvline(alpha_grid[crossing_idx],
 
 ax.set_xlabel(r"true hyperedge strength $\alpha_e$")
 ax.set_ylabel(r"spectral radius $\rho(A)$")
-ax.set_title("Phase transition: spectral radius")
+ax.set_title(r"Inferred coupling $\rho(A)$ vs hyperedge strength")
 ax.legend(loc="upper left", fontsize=10)
 ax.grid(True, alpha=0.3)
 
@@ -56,16 +56,13 @@ l2 = ax2.plot(alpha_grid, n_events,
               color="darkorange", linewidth=2, marker="o", alpha=0.7,
               label="total event count")
 
-ax.axvline(1.0,
-           color="darkred", linestyle="--", linewidth=1.5, alpha=0.6,
-           label=r"true $\rho=1$ at $\alpha=1$")
 
 ax.set_xlabel(r"true hyperedge strength $\alpha_e$")
 ax.set_ylabel("burst frequency (events per unit window)", color="darkgreen")
 ax2.set_ylabel("total event count over [0, T]", color="darkorange")
 ax.tick_params(axis='y', labelcolor="darkgreen")
 ax2.tick_params(axis='y', labelcolor="darkorange")
-ax.set_title("Cascade emergence: empirical evidence")
+ax.set_title("Burst frequency rises smoothly (no cascade / divergence)")
 
 # Combine legends
 lines = l1 + l2
