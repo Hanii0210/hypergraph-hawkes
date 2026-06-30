@@ -11,27 +11,34 @@
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white">
   <img alt="NumPy" src="https://img.shields.io/badge/NumPy-supported-013243?logo=numpy">
   <img alt="SciPy" src="https://img.shields.io/badge/SciPy-supported-8CAAE6?logo=scipy">
-  <img alt="Matplotlib" src="https://img.shields.io/badge/figures-Matplotlib-11557C">
-  <img alt="Status" src="https://img.shields.io/badge/status-research%20prototype-orange">
+  <img alt="Matplotlib" src="https://img.shields.io/badge/Figures-Matplotlib-11557C">
+  <img alt="Status" src="https://img.shields.io/badge/Status-research%20prototype-orange">
 </p>
 
 <p>
   <a href="#-overview">Overview</a> •
   <a href="#-model">Model</a> •
-  <a href="#-figures">Figures</a> •
   <a href="#-experiments">Experiments</a> •
+  <a href="#-data-sources">Data sources</a> •
+  <a href="#-synthetic-highlights">Synthetic</a> •
   <a href="#-real-data">Real data</a> •
-  <a href="#-quick-start">Quick start</a> •
-  <a href="#-repository-layout">Layout</a>
+  <a href="#-quick-start">Quick start</a>
 </p>
 
 <br>
 
-<img src="figures/hth_combo_data.png" alt="Hyperedge-triggered Hawkes mechanism" width="820">
+<p align="center">
+  <strong>Can higher-order event patterns be separated from ordinary pairwise excitation?</strong><br>
+  This repository studies hyperedge-triggered Hawkes processes as a lightweight way to detect group-level temporal interactions in event streams.
+</p>
 
 <br>
 
-**Higher-order temporal dependence • Hypergraph interactions • EM inference • Point processes**
+<img src="figures/hth_combo_data.png" alt="Hyperedge-triggered Hawkes mechanism" width="860">
+
+<br>
+
+**Higher-order temporal dependence · Hypergraph interactions · EM inference · Point processes**
 
 </div>
 
@@ -39,59 +46,58 @@
 
 ## 🌟 Overview
 
-**Hypergraph Hawkes** is a research codebase for modeling event streams where **groups of events**, rather than only single past events, can trigger future activity.
+**Hypergraph Hawkes** is a research codebase for modeling event streams where **groups of past events**, rather than only individual past events, can trigger future activity.
 
 Classical multivariate Hawkes processes model pairwise excitation:
 
-> event from node `i` increases the intensity of future events at node `j`.
+> an event from node `i` increases the future intensity of node `j`.
 
 This project extends that idea to **hyperedge-triggered Hawkes processes (HTH)**:
 
 > a group of source nodes firing within a short activation window can activate an additional higher-order excitation term.
 
-The repository includes:
+The repository contains:
 
-- 🧠 **Hyperedge-triggered Hawkes models** for higher-order temporal interactions.
-- ⚙️ **Closed-form EM-style inference** with latent branching responsibilities.
-- 📈 **Synthetic experiments** ordered as `Syn 1`--`Syn 10`.
-- 🧪 **Supplementary diagnostics** ordered as `Supp A`--`Supp E`.
-- 🧬 **Real-data analyses** on retina and cortical spike-train datasets.
-- 🖼️ **Publication-style figures** for model mechanism, synthetic validation, and real-data stability.
-- 🧹 A cleaned project structure with separated code, results, figures, and archives.
+- 🧠 hyperedge-triggered Hawkes models for higher-order temporal interactions;
+- ⚙️ closed-form EM-style inference with latent branching responsibilities;
+- 📈 synthetic experiments ordered as `Syn 01`--`Syn 10`;
+- 🧪 supplementary diagnostics ordered as `Supp A`--`Supp E`;
+- 🧬 formal real-data scripts ordered as `Real 01`--`Real 04`;
+- 🖼️ publication-style figures for model intuition, synthetic validation, and real-data stability.
 
 ---
 
 ## 🧩 Model
 
-For target node $n$, the conditional intensity is
+For target node `n`, the conditional intensity is:
 
-$$
+```math
 \lambda_n(t)
 =
 \mu_n
 +
 \sum_{j:t_j<t}
-\alpha_{n_j \to n}\,\phi(t-t_j)
+\alpha_{n_j\to n}\,\phi(t-t_j)
 +
 \sum_{e\ni n}
-\alpha_e\,\phi(t-t_{\mathrm{anchor}}(e,t)).
-$$
+\alpha_e\,\phi\!\left(t-t_{\mathrm{anchor}}(e,t)\right)
+```
 
 where:
 
 | Symbol | Meaning |
 |---|---|
-| $\mu_n$ | background rate of node $n$ |
-| $\alpha_{i\to n}$ | pairwise excitation from node $i$ to node $n$ |
-| $e$ | candidate hyperedge |
-| $\alpha_e$ | higher-order hyperedge-triggered excitation |
-| $\phi(\cdot)$ | temporal kernel |
-| $t_{\mathrm{anchor}}(e,t)$ | activation anchor time of the hyperedge pattern |
+| `μ_n` | background rate of node `n` |
+| `α_{i→n}` | pairwise excitation from node `i` to node `n` |
+| `e` | candidate hyperedge |
+| `α_e` | higher-order hyperedge-triggered excitation |
+| `φ(·)` | temporal kernel |
+| `t_anchor(e,t)` | activation anchor time of the hyperedge pattern |
 
-The real-data model comparison uses **candidate-count BIC** as the primary statistic:
+The primary real-data model-comparison statistic is candidate-count BIC:
 
-$$
-\mathrm{BICdiff}
+```math
+\Delta \mathrm{BIC}_{\mathrm{cand}}
 =
 2\left(
 \log L_{\mathrm{HTH}}
@@ -99,85 +105,33 @@ $$
 \log L_{\mathrm{pairwise}}
 \right)
 -
-|\mathcal{E}_{\mathrm{cand}}|\log(n_{\mathrm{heldout}}).
-$$
+|\mathcal{E}_{\mathrm{cand}}|\log(n_{\mathrm{heldout}})
+```
 
-Positive values favor HTH after penalizing the number of candidate hyperedges.
+Positive values favor the HTH model after penalizing the number of candidate hyperedges.
 
-> ⚠️ Active-edge-count BIC is printed only as a diagnostic.  
+> ⚠️ Active-edge-count BIC is used only as a diagnostic.  
 > Formal real-data claims use candidate-count BIC.
-
----
-
-## 🖼️ Figures
-
-### 🔥 Hyperedge-triggered activation mechanism
-
-<p align="center">
-  <img src="figures/hth_combo_data.png" alt="Hyperedge-triggered Hawkes activation schematic" width="820">
-</p>
-
----
-
-### 📊 Real-data BIC stability
-
-<p align="center">
-  <img src="figures/realdata/realdata_bic_stability.png" alt="Real-data BIC stability" width="760">
-</p>
-
----
-
-### ✅ Positive-window rate
-
-<p align="center">
-  <img src="figures/realdata/realdata_positive_window_rate.png" alt="Real-data positive-window rate" width="760">
-</p>
-
----
-
-### 🔎 Hyperedge exposure diagnostic
-
-<p align="center">
-  <img src="figures/realdata/realdata_exposure_diagnostic_clipped.png" alt="Real-data exposure diagnostic" width="760">
-</p>
-
----
-
-### 🧪 Synthetic examples
-
-<p align="center">
-  <img src="figures/synthetic/syn01_recovery_robustness.png" alt="Syn 1 recovery robustness" width="620">
-</p>
-
-<p align="center">
-  <img src="figures/synthetic/syn05_likelihood_separation.png" alt="Syn 5 likelihood separation" width="620">
-</p>
 
 ---
 
 ## 🧪 Experiments
 
-The project uses paper-facing experiment names:
-
-- `Syn 1`--`Syn 10`: main synthetic experiments.
-- `Supp A`--`Supp E`: supplementary / optional experiments.
-- `R1`--`R3`: formal real-data experiments.
-
-See [`experiments/EXPERIMENTS.md`](experiments/EXPERIMENTS.md) for the full inventory.
+The project uses paper-facing experiment names.
 
 ### 🚀 Main synthetic experiments
 
 | ID | Script | Role |
 |---:|---|---|
-| Syn 1 | `experiments/syn01_recovery_robustness.py` | parameter recovery and robustness |
-| Syn 2 | `experiments/syn02_regularization_path.py` | regularization path and sparsity control |
-| Syn 3 | `experiments/syn03_em_convergence.py` | EM convergence from random initializations |
-| Syn 4 | `experiments/syn04_strength_sensitivity.py` | interaction-strength sensitivity and non-explosive behavior |
-| Syn 5 | `experiments/syn05_likelihood_separation.py` | pairwise confounding and likelihood separation |
-| Syn 6 | `experiments/syn06_trigger_window_sensitivity.py` | trigger-window sensitivity |
-| Syn 7 | `experiments/syn07_scalability.py` | computational scalability |
-| Syn 8 | `experiments/syn08_bias_ablation.py` | kernel-timescale bias / variance ablation |
-| Syn 9 | `experiments/syn09_identification_diagnostic.py` | candidate nomination and detectability |
+| Syn 01 | `experiments/syn01_recovery_robustness.py` | parameter recovery and robustness |
+| Syn 02 | `experiments/syn02_regularization_path.py` | regularization path and sparsity control |
+| Syn 03 | `experiments/syn03_em_convergence.py` | EM convergence from random initializations |
+| Syn 04 | `experiments/syn04_strength_sensitivity.py` | interaction-strength sensitivity |
+| Syn 05 | `experiments/syn05_likelihood_separation.py` | pairwise confounding and likelihood separation |
+| Syn 06 | `experiments/syn06_trigger_window_sensitivity.py` | trigger-window sensitivity |
+| Syn 07 | `experiments/syn07_scalability.py` | computational scalability |
+| Syn 08 | `experiments/syn08_bias_ablation.py` | kernel-timescale bias / variance ablation |
+| Syn 09 | `experiments/syn09_identification_diagnostic.py` | candidate nomination and detectability |
 | Syn 10 | `experiments/syn10_interaction_baseline.py` | interaction-baseline comparison |
 
 ### 📎 Supplementary experiments
@@ -190,28 +144,77 @@ See [`experiments/EXPERIMENTS.md`](experiments/EXPERIMENTS.md) for the full inve
 | Supp D | `experiments/suppD_rank_sweep.py` | CP-rank sweep |
 | Supp E | `experiments/suppE_calibration.py` | calibration / selective-inference diagnostic |
 
+### 🧬 Formal real-data experiments
+
+| ID | Script | Dataset / role |
+|---:|---|---|
+| Real 01 | `experiments/real01_ret1.py` | ret-1 retina |
+| Real 02 | `experiments/real02_pvc3.py` | PVC-3 area 17 |
+| Real 03 | `experiments/real03_pvc11.py` | PVC-11 monkey 2 |
+| Real 04 | `experiments/real04_plot_summary.py` | real-data summary panel |
+
+See [`experiments/EXPERIMENTS.md`](experiments/EXPERIMENTS.md) for the complete inventory.
+
+---
+
+## 🗃️ Data sources
+
+Raw datasets are **not included** in this repository. The project expects local data under `data/raw/`, which is ignored by Git.
+
+The formal real-data analysis uses three spike-train datasets:
+
+| ID | Dataset | Current role |
+|---:|---|---|
+| R1 | ret-1 retina | formal held-out HTH comparison |
+| R2 | PVC-3 area 17 | formal held-out HTH comparison |
+| R3 | PVC-11 monkey 2 | formal held-out HTH comparison |
+
+### G-Node exploratory data
+
+The repository also keeps a legacy G-Node-style exploratory path for a binned pseudo-event dataset. This is useful as a smoke-test / development example, but it is **not** used as formal evidence for HTH effects in the current paper-facing analysis.
+
+In short:
+
+- G-Node-style data were used for early exploratory checks;
+- the binned pseudo-event representation is treated cautiously;
+- formal claims are based on `Real 01`--`Real 03`;
+- legacy G-Node-related scripts are kept under `archive/legacy_realdata_scripts/`.
+
+---
+
+## 📈 Synthetic highlights
+
+### Syn 01 — recovery and robustness
+
+<p align="center">
+  <img src="figures/synthetic/syn01_recovery_robustness.png" alt="Syn 01 recovery robustness" width="660">
+</p>
+
+### Syn 05 — likelihood separation
+
+<p align="center">
+  <img src="figures/synthetic/syn05_likelihood_separation.png" alt="Syn 05 likelihood separation" width="660">
+</p>
+
+### Syn 08 — bias ablation
+
+<p align="center">
+  <img src="figures/synthetic/syn08_bias_ablation.png" alt="Syn 08 bias ablation" width="660">
+</p>
+
 ---
 
 ## 🧬 Real data
 
-Formal real-data scripts are separated from exploratory legacy scripts.
+Formal real-data analysis is summarized through candidate-count BIC on held-out windows.
 
-| ID | Script | Dataset |
-|---:|---|---|
-| R1 | `experiments/real01_ret1.py` | ret-1 retina |
-| R2 | `experiments/real02_pvc3.py` | PVC-3 area 17 |
-| R3 | `experiments/real03_pvc11.py` | PVC-11 monkey 2 |
-
-Real-data outputs are stored in:
-
-```text
-experiments/results/realdata/
-figures/realdata/
-```
+<p align="center">
+  <img src="figures/realdata/real04_summary_panel.png" alt="Formal real-data summary panel" width="940">
+</p>
 
 ### 📌 Current real-data summary
 
-| Dataset | top-m | Positive windows | Mean BICdiff | Median BICdiff |
+| Dataset | top-m | Positive windows | Mean ΔBIC | Median ΔBIC |
 |---|---:|---:|---:|---:|
 | ret-1 | 1 | 5/5 | 8.322 | 8.677 |
 | ret-1 | 2 | 3/5 | 1.856 | 2.132 |
@@ -223,7 +226,7 @@ figures/realdata/
 | PVC-11 monkey2 | 2 | 5/5 | 10.821 | 8.732 |
 | PVC-11 monkey2 | 3 | 4/5 | 13.814 | 5.840 |
 
-**Interpretation.** Cortex datasets show more stable HTH evidence across candidate sizes, while ret-1 becomes more fragile as additional candidate pairs are included.
+**Interpretation.** The cortex datasets show more stable HTH evidence across candidate sizes, while ret-1 becomes more fragile as additional candidate pairs are included.
 
 ---
 
@@ -254,7 +257,7 @@ python run_tests.py
 python run_all.py --quick
 ```
 
-### 5. Regenerate real-data summary figures
+### 5. Regenerate the real-data summary panel
 
 ```bash
 python experiments/real04_plot_summary.py
@@ -293,7 +296,11 @@ hypergraph_hawkes/
 |-- experiments/
 |   |-- syn01_*.py ... syn10_*.py
 |   |-- suppA_*.py ... suppE_*.py
-|   |-- realdata_*.py
+|   |-- real01_ret1.py
+|   |-- real02_pvc3.py
+|   |-- real03_pvc11.py
+|   |-- real04_plot_summary.py
+|   |-- realdata_pipeline.py
 |   |-- checks/
 |   |-- schematics/
 |   |-- results/
@@ -317,9 +324,9 @@ hypergraph_hawkes/
 
 - Raw datasets are **not** included in this repository.
 - Large binary artifacts such as `.pkl` and `.npy` are ignored.
-- Synthetic figures are stored in `figures/synthetic/`.
-- Real-data figures are stored in `figures/realdata/`.
 - Formal real-data outputs are stored in `experiments/results/realdata/`.
+- Synthetic figures are stored in `figures/synthetic/`.
+- The real-data summary panel is stored at `figures/realdata/real04_summary_panel.png`.
 - Legacy exploratory scripts are archived under `archive/legacy_realdata_scripts/`.
 
 ---
