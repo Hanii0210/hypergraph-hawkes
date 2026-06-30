@@ -28,8 +28,8 @@
 <br>
 
 <p align="center">
-  <strong>Can higher-order event patterns be separated from ordinary pairwise excitation?</strong><br>
-  This repository studies hyperedge-triggered Hawkes processes as a lightweight way to detect group-level temporal interactions in event streams.
+  <em><strong>Can higher-order event patterns be separated from ordinary pairwise excitation?</strong><br>
+  This repository studies hyperedge-triggered Hawkes processes as a lightweight way to detect group-level temporal interactions in event streams.</em>
 </p>
 
 <br>
@@ -71,17 +71,17 @@ The repository contains:
 
 For target node `n`, the conditional intensity is:
 
-```math
+$$
 \lambda_n(t)
 =
 \mu_n
 +
 \sum_{j:t_j<t}
-\alpha_{n_j\to n}\,\phi(t-t_j)
+\alpha_{n_j\to n}\phi(t-t_j)
 +
 \sum_{e\ni n}
-\alpha_e\,\phi\!\left(t-t_{\mathrm{anchor}}(e,t)\right)
-```
+\alpha_e\phi(t-t_{\mathrm{anchor}}(e,t))
+$$
 
 where:
 
@@ -96,17 +96,13 @@ where:
 
 The primary real-data model-comparison statistic is candidate-count BIC:
 
-```math
+$$
 \Delta \mathrm{BIC}_{\mathrm{cand}}
 =
-2\left(
-\log L_{\mathrm{HTH}}
--
-\log L_{\mathrm{pairwise}}
-\right)
+2(\log L_{\mathrm{HTH}}-\log L_{\mathrm{pairwise}})
 -
 |\mathcal{E}_{\mathrm{cand}}|\log(n_{\mathrm{heldout}})
-```
+$$
 
 Positive values favor the HTH model after penalizing the number of candidate hyperedges.
 
