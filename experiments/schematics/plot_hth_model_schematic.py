@@ -132,7 +132,7 @@ def _resolve_data_dir(cli_dir):
     set of common locations relative to the script and the working directory."""
     marker = "hth_activation_meta.csv"
     here = Path(__file__).resolve().parent
-    roots, subs = [], [".", "data", "csvs", "experiments"]
+    roots, subs = [], [".", "data", "csvs", "figures", "experiments"]
     if cli_dir:
         roots.append(Path(cli_dir))
     roots += [Path.cwd(), here, here.parent]
@@ -182,9 +182,8 @@ def main():
     draw_2d(ax_i, ax_r, lc, ev, P)
     draw_surface(fig, ax3d, sf, P)
 
-    fig.suptitle("Hyperedge-triggered Hawkes activation", fontsize=13, y=0.965)
-    fig.text(0.065, 0.90, "(a)", fontsize=12, fontweight="bold")
-    fig.text(0.60, 0.90, "(b)", fontsize=12, fontweight="bold")
+    fig.text(0.065, 0.94, "(a)", fontsize=12, fontweight="bold")
+    fig.text(0.60, 0.94, "(b)", fontsize=12, fontweight="bold")
 
     fig.savefig(fig_dir / "hth_combo_data.png", dpi=300, bbox_inches="tight")
     fig.savefig(fig_dir / "hth_combo_data.pdf", bbox_inches="tight")
