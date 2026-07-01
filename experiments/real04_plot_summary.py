@@ -326,12 +326,6 @@ def main() -> None:
         columnspacing=2.2,
     )
 
-    fig.suptitle(
-        "Formal held-out real-data summary "
-        r"(candidate-count $\Delta$BIC; positive favours HTH)",
-        fontsize=11,
-        y=1.125,
-    )
 
     out_png = fig_dir / "real04_summary_panel.png"
     out_pdf = fig_dir / "real04_summary_panel.pdf"
