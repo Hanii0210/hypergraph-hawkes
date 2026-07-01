@@ -107,4 +107,5 @@ axC.grid(axis="y", color="0.92", lw=0.6); axC.set_axisbelow(True)
 fig.savefig("figures/synthetic/syn09_identification_diagnostic.png")
 fig.savefig("figures/synthetic/syn09_identification_diagnostic.pdf")
 plt.close(fig)
+
 print("Saved figures/synthetic/syn09_identification_diagnostic.{png,pdf}")
