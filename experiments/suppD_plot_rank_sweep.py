@@ -99,4 +99,3 @@ fig.suptitle("Exp 12 — CP rank selection: parameter reduction and "
 fig.tight_layout()
 fig.savefig("figures/synthetic/suppD_rank_sweep.png", dpi=150, bbox_inches="tight")
 print("Saved: figures/synthetic/suppD_rank_sweep.png")
-plt.show()

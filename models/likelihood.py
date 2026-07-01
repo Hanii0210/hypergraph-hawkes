@@ -173,6 +173,15 @@ def log_likelihood(events, T, mu, alpha_pairwise, alpha_hyper, edge_list,
                 tau = times[use] - comps[idx[use]]
                 lam[use] += a_e * np.exp(-beta * tau)
 
+        lam_arr = np.asarray(lam)
+        bad_lam = lam_arr <= 0
+        if np.any(bad_lam):
+            raise FloatingPointError(
+                f"Non-positive intensity encountered in E-step: "
+                f"min(lambda)={float(np.min(lam_arr)):.3e}, "
+                f"count={int(np.sum(bad_lam))}. "
+                "Check baseline rates, excitation weights, and kernel values."
+            )
         pos = lam > 0
         log_lam_sum = float(np.log(lam[pos]).sum())
 

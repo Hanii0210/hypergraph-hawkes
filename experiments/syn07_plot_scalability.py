@@ -90,4 +90,3 @@ fig.suptitle("Computational scalability of the prototype",
 plt.savefig("figures/synthetic/syn07_scalability.png", dpi=150,
             bbox_inches="tight")
 print("Saved: figures/synthetic/syn07_scalability.png")
-plt.show()

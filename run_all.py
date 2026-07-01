@@ -1,4 +1,4 @@
-﻿"""
+"""
 End-to-end experiment runner for the Hyperedge-triggered Hawkes project.
 
 Default behaviour:
@@ -148,11 +148,6 @@ def run_step(step: Step) -> tuple[bool, float]:
     status = "PASS" if ok else "FAIL"
     print(f"\n[{status}] {step.label} ({elapsed:.1f}s)")
     return ok, elapsed
-
-
-def add_section(plan: List[Step], title: str, steps: Iterable[Step]) -> None:
-    plan.append(Step(f"--- {title} ---", [sys.executable, "-c", "print('section')"], required=False))
-    plan.extend(steps)
 
 
 def build_plan(args: argparse.Namespace) -> List[Step]:

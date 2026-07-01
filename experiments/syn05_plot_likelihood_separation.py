@@ -98,4 +98,3 @@ fig.suptitle("Falsifiability test: does the data demand a hyperedge term?",
 plt.savefig("figures/synthetic/syn05_likelihood_separation.png", dpi=150,
             bbox_inches="tight")
 print("Saved: figures/synthetic/syn05_likelihood_separation.png")
-plt.show()

@@ -82,4 +82,3 @@ plt.tight_layout()
 plt.savefig("figures/synthetic/suppC_3node_hyperedge.png", dpi=150,
             bbox_inches="tight")
 print("\nSaved: figures/synthetic/suppC_3node_hyperedge.png")
-plt.show()

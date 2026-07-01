@@ -102,4 +102,3 @@ plt.tight_layout()
 plt.savefig("figures/synthetic/syn01_recovery_robustness.png", dpi=150,
             bbox_inches="tight")
 print("Saved: figures/synthetic/syn01_recovery_robustness.png")
-plt.show()

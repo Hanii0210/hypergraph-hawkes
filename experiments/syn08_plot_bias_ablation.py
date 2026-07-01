@@ -95,4 +95,3 @@ fig.suptitle(
 plt.savefig("figures/synthetic/syn08_bias_ablation.png", dpi=150,
             bbox_inches="tight")
 print("Saved: figures/synthetic/syn08_bias_ablation.png")
-plt.show()

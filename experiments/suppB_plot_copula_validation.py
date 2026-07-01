@@ -120,4 +120,3 @@ fig.legend(handles=[mean_handle, median_handle],
 plt.tight_layout()
 plt.savefig("figures/synthetic/suppB_copula_validation.png", dpi=150, bbox_inches="tight")
 print("Saved: figures/synthetic/suppB_copula_validation.png")
-plt.show()

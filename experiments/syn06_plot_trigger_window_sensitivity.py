@@ -83,4 +83,3 @@ plt.tight_layout()
 plt.savefig("figures/synthetic/syn06_trigger_window_sensitivity.png", dpi=150,
             bbox_inches="tight")
 print("Saved: figures/synthetic/syn06_trigger_window_sensitivity.png")
-plt.show()
