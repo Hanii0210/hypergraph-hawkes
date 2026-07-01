@@ -1,100 +1,225 @@
-import sys
-sys.path.insert(0, ".")
+﻿"""
+Figure 3 -- likelihood separation (falsifiability), decision-axis view.
 
-import numpy as np
+Each scenario is placed as a dot on a single Delta-BIC evidence axis, split into
+zones by the +/-6 strong-evidence thresholds. Scenario A, generated with a
+hyperedge, should favour HTH; scenario B, generated under a pairwise-only null,
+should favour the pairwise model. The nested-model likelihood gain Delta-loglik,
+which is non-negative by construction, is annotated as support.
+
+Because Delta-BIC for scenario A can be positive but below the +6 line, the
+figure separates positive evidence from strong evidence.
+"""
+from __future__ import annotations
+
 import pickle
+import sys
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
-
-with open("experiments/results/synthetic/syn05_likelihood_separation.pkl", "rb") as f:
-    results = pickle.load(f)
+import numpy as np
 
 
-# =============================================================================
-# Figure: ΔL and BIC difference for both scenarios
-# =============================================================================
-scenarios = ["A_with_hyperedge", "B_no_hyperedge"]
-labels    = ["A: data WITH hyperedge\n(should favour HTH)",
-             "B: data WITHOUT hyperedge\n(should favour pairwise)"]
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+RESULT_PATH = HERE / "results" / "synthetic" / "syn05_likelihood_separation.pkl"
+FIG_DIR = ROOT / "figures" / "synthetic"
+FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Larger figure with more top room for the suptitle
-fig, axes = plt.subplots(1, 2, figsize=(13, 6.5),
-                         gridspec_kw={"top": 0.88, "bottom": 0.13})
-x = np.arange(len(scenarios))
+sys.path.insert(0, str(HERE))
 
-# --- Panel 1: log-likelihood gain (Delta L) ---
-ax = axes[0]
-delta_L_vals = [results[s]["delta_L"] for s in scenarios]
-colors_L     = ["#27ae60" if v > 0 else "#7f8c8d" for v in delta_L_vals]
+try:
+    from paper_style import apply_style, PALETTE
+except ModuleNotFoundError:
+    PALETTE = {
+        "pairwise": "#667085",
+        "hth": "#3E7CB1",
+        "warn": "#E08B3E",
+        "accent": "#2FA889",
+        "amber": "#E0B43E",
+    }
 
-bars = ax.bar(x, delta_L_vals, 0.55,
-              color=colors_L, edgecolor="black", alpha=0.85)
-ax.axhline(0, color="black", linewidth=1)
+    def apply_style() -> None:
+        plt.rcParams.update(
+            {
+                "figure.dpi": 160,
+                "savefig.dpi": 300,
+                "savefig.bbox": "tight",
+                "savefig.pad_inches": 0.04,
+                "font.size": 8.5,
+                "axes.titlesize": 9.5,
+                "axes.labelsize": 8.8,
+                "xtick.labelsize": 8,
+                "ytick.labelsize": 8,
+                "legend.fontsize": 8.0,
+                "axes.linewidth": 0.8,
+                "pdf.fonttype": 42,
+                "ps.fonttype": 42,
+            }
+        )
 
-# Significance reference: chi^2(df=1) at p=0.05 -> ΔL > 1.92
-ax.axhline(1.92, color="darkgreen", linestyle=":", linewidth=1.5,
-           label=r"significance threshold ($\Delta L > 1.92$, p<0.05)")
-ax.axhline(-1.92, color="darkred", linestyle=":", linewidth=1.5)
 
-# Annotate (all labels positioned outside the threshold lines for clarity)
-for i, v in enumerate(delta_L_vals):
-    ax.annotate(f"{v:+.2f}",
-                xy=(x[i], v),
-                xytext=(0, 10 if v > 0 else -18),
-                textcoords="offset points",
-                ha="center", fontsize=12, fontweight="bold")
+def get_palette(key: str, fallback: str) -> str:
+    """Use shared paper palette when available, otherwise use fallback."""
+    return PALETTE[key] if key in PALETTE else fallback
 
-ax.set_xticks(x)
-ax.set_xticklabels(labels, fontsize=10)
-ax.set_ylabel(r"$\Delta L = L_{\mathrm{HTH}} - L_{\mathrm{pairwise}}$",
-              fontsize=11)
-ax.set_title("Likelihood gain from including the hyperedge term",
-             fontsize=12, pad=10)
 
-ymax = max(abs(min(delta_L_vals)), abs(max(delta_L_vals))) * 1.7
-ax.set_ylim(-ymax, ymax)
-ax.legend(loc="lower right", fontsize=9, framealpha=0.95)
-ax.grid(True, alpha=0.3, axis="y")
+def main() -> None:
+    if not RESULT_PATH.exists():
+        raise FileNotFoundError(f"Missing input file: {RESULT_PATH}")
 
-# --- Panel 2: BIC difference ---
-ax = axes[1]
-bic_diffs = [results[s]["bic_diff"] for s in scenarios]
-colors    = ["#27ae60" if v > 0 else "#7f8c8d" for v in bic_diffs]
+    apply_style()
 
-bars = ax.bar(x, bic_diffs, 0.55, color=colors,
-              alpha=0.85, edgecolor="black")
-ax.axhline(0, color="black", linewidth=1)
-ax.axhline(6, color="darkgreen", linestyle=":", linewidth=1.5,
-           label=r"BIC threshold $\pm 6$ (strong evidence)")
-ax.axhline(-6, color="darkred", linestyle=":", linewidth=1.5)
+    with open(RESULT_PATH, "rb") as f:
+        result = pickle.load(f)
 
-# Place labels well clear of threshold lines
-for i, v in enumerate(bic_diffs):
-    if v > 0:
-        ax.annotate(f"{v:+.2f}",
-                    xy=(x[i], v),
-                    xytext=(0, 10),
-                    textcoords="offset points",
-                    ha="center", fontsize=12, fontweight="bold")
-    else:
-        # Place B's label well below -6 line to avoid collision
-        ax.annotate(f"{v:+.2f}",
-                    xy=(x[i], v),
-                    xytext=(0, -22),
-                    textcoords="offset points",
-                    ha="center", fontsize=12, fontweight="bold")
+    scenarios = ["A_with_hyperedge", "B_no_hyperedge"]
+    y_labels = [
+        "A: data WITH hyperedge\n(expect HTH)",
+        "B: pairwise-only null\n(expect pairwise)",
+    ]
 
-ax.set_xticks(x)
-ax.set_xticklabels(labels, fontsize=10)
-ax.set_ylabel("BIC difference (positive favours HTH)", fontsize=11)
-ax.set_title("Model selection by BIC", fontsize=12, pad=10)
+    bic_diff = np.array([result[s]["bic_diff"] for s in scenarios], dtype=float)
+    delta_ll = np.array([result[s]["delta_L"] for s in scenarios], dtype=float)
 
-ymax2 = max(abs(min(bic_diffs)), abs(max(bic_diffs))) * 1.7
-ax.set_ylim(-ymax2, ymax2)
-ax.legend(loc="lower right", fontsize=9, framealpha=0.95)
-ax.grid(True, alpha=0.3, axis="y")
+    y_positions = np.array([1, 0], dtype=float)
 
-fig.suptitle("Falsifiability test: does the data demand a hyperedge term?",
-             fontsize=14, fontweight="bold")
-plt.savefig("figures/synthetic/syn05_likelihood_separation.png", dpi=150,
-            bbox_inches="tight")
-print("Saved: figures/synthetic/syn05_likelihood_separation.png")
+    # Fixed decision-axis limits from the Claude version, with a small safety
+    # extension in case regenerated values move slightly outside the range.
+    xlo = min(-11.0, float(np.min(bic_diff)) - 1.5)
+    xhi = max(9.0, float(np.max(bic_diff)) + 1.5)
+
+    pairwise_color = get_palette("pairwise", "#667085")
+    hth_color = get_palette("hth", "#3E7CB1")
+    warn_color = get_palette("warn", "#E08B3E")
+
+    fig, ax = plt.subplots(figsize=(7.6, 2.9))
+
+    # ------------------------------------------------------------------
+    # Evidence zones
+    # ------------------------------------------------------------------
+    ax.axvspan(xlo, -6, color=pairwise_color, alpha=0.14, zorder=0)
+    ax.axvspan(-6, 6, color="0.965", zorder=0)
+    ax.axvspan(6, xhi, color=hth_color, alpha=0.12, zorder=0)
+
+    ax.axvline(0, color="0.35", linewidth=1.2, zorder=2)
+
+    for threshold in (-6, 6):
+        ax.axvline(
+            threshold,
+            color=warn_color,
+            linestyle=(0, (3, 2)),
+            linewidth=1.3,
+            zorder=2,
+        )
+
+    ax.text(
+        -8.5,
+        1.72,
+        "strong: pairwise",
+        color=pairwise_color,
+        fontsize=7.6,
+        ha="center",
+        va="center",
+        fontweight="bold",
+    )
+
+    ax.text(
+        7.5,
+        1.72,
+        "strong: HTH",
+        color=hth_color,
+        fontsize=7.6,
+        ha="center",
+        va="center",
+        fontweight="bold",
+    )
+
+    # ------------------------------------------------------------------
+    # Scenario points on the decision axis
+    # ------------------------------------------------------------------
+    for y, bic, dll in zip(y_positions, bic_diff, delta_ll):
+        color = hth_color if bic > 0 else pairwise_color
+
+        ax.plot(
+            [0, bic],
+            [y, y],
+            color=color,
+            linewidth=1.8,
+            solid_capstyle="round",
+            zorder=3,
+        )
+
+        ax.scatter(
+            [bic],
+            [y],
+            s=80,
+            color=color,
+            edgecolor="white",
+            linewidth=1.0,
+            zorder=5,
+        )
+
+        ha = "left" if bic > 0 else "right"
+        dx = 8 if bic > 0 else -8
+
+        ax.annotate(
+            rf"$\Delta$BIC = {bic:+.2f}",
+            xy=(bic, y),
+            xytext=(dx, 8),
+            textcoords="offset points",
+            ha=ha,
+            va="bottom",
+            fontsize=9.5,
+            fontweight="bold",
+            color="0.12",
+        )
+
+        ax.annotate(
+            rf"$\Delta\ell$ = {dll:+.2f}",
+            xy=(bic, y),
+            xytext=(dx, -9),
+            textcoords="offset points",
+            ha=ha,
+            va="top",
+            fontsize=8,
+            color="0.42",
+        )
+
+    # ------------------------------------------------------------------
+    # Axes and labels
+    # ------------------------------------------------------------------
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(y_labels, fontsize=9)
+    ax.set_ylim(-0.6, 1.95)
+
+    ax.set_xlim(xlo, xhi)
+    ax.set_xticks([-9, -6, -3, 0, 3, 6, 9])
+
+    ax.set_xlabel(
+        r"$\Delta$BIC  "
+        r"($\leftarrow$ favours pairwise    $\cdot$    favours HTH $\rightarrow$)"
+    )
+
+    for spine in ("top", "right", "left"):
+        ax.spines[spine].set_visible(False)
+
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+
+    out_png = FIG_DIR / "syn05_likelihood_separation.png"
+    out_pdf = FIG_DIR / "syn05_likelihood_separation.pdf"
+
+    fig.savefig(out_png)
+    fig.savefig(out_pdf)
+    plt.close(fig)
+
+    print(f"Saved: {out_png}")
+    print(f"Saved: {out_pdf}")
+
+
+if __name__ == "__main__":
+    main()
