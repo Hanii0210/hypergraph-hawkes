@@ -1,565 +1,348 @@
-﻿from __future__ import annotations
+﻿"""
+Figure 6 -- formal real-data summary panel (real04_summary_panel).
 
-"""
-Publication-style real-data summary panel.
+Builds the three-panel held-out real-data summary used in the manuscript:
 
-Inputs:
-    experiments/results/realdata/real01_ret1_20080516_R1_rec0.csv
-    experiments/results/realdata/real02_pvc3_area17.csv
-    experiments/results/realdata/real03_pvc11_monkey2.csv
+    (a) candidate-count BIC stability across top-m, shown as mean with min-max range;
+    (b) positive held-out window rate per dataset and top-m;
+    (c) median candidate-count BIC as a diverging heatmap.
 
-Outputs:
-    experiments/results/realdata/real04_combined.csv
+Reads:
     experiments/results/realdata/real04_summary_by_dataset_topm.csv
+
+Writes:
     figures/realdata/real04_summary_panel.png
     figures/realdata/real04_summary_panel.pdf
 """
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
-from matplotlib.lines import Line2D
 
 
-RESULTS_DIR = Path("experiments/results/realdata")
-FIG_DIR = Path("figures/realdata")
-
-DEFAULT_INPUTS = [
-    RESULTS_DIR / "real01_ret1_20080516_R1_rec0.csv",
-    RESULTS_DIR / "real02_pvc3_area17.csv",
-    RESULTS_DIR / "real03_pvc11_monkey2.csv",
-]
-
-DATASET_ORDER = [
-    "ret-1",
-    "PVC-3 area17",
-    "PVC-11 monkey2",
-]
-
-DATASET_LABELS = {
-    "ret-1": "R1 · ret-1",
-    "PVC-3 area17": "R2 · PVC-3 area17",
-    "PVC-11 monkey2": "R3 · PVC-11 monkey2",
+DATASET_ORDER = ["ret-1", "PVC-3 area17", "PVC-11 monkey2"]
+DATASET_SHORT = {
+    "ret-1": "ret-1",
+    "PVC-3 area17": "PVC-3",
+    "PVC-11 monkey2": "PVC-11",
+}
+DATASET_COLORS = {
+    "ret-1": "#3E7CB1",
+    "PVC-3 area17": "#2FA889",
+    "PVC-11 monkey2": "#E08B3E",
+}
+MARKERS = {
+    "ret-1": "o",
+    "PVC-3 area17": "s",
+    "PVC-11 monkey2": "^",
 }
 
-# Bright but still paper-friendly / colorblind-safe.
-PALETTE = {
-    "ret-1": "#3E7CB1",          # blue
-    "PVC-3 area17": "#2FA889",   # teal-green
-    "PVC-11 monkey2": "#E08B3E", # orange
-}
 
-TEXT = "#20242A"
-MUTED_TEXT = "#667085"
-GRID = "#D9DEE7"
-SPINE = "#C7CED8"
-
-
-def infer_dataset_name(path: Path) -> str:
-    """Infer canonical dataset name from the filename.
-
-    This intentionally overrides any inconsistent dataset labels inside CSVs.
-    """
-    name = path.name.lower()
-
-    if "ret1" in name or "ret-1" in name:
-        return "ret-1"
-    if "pvc3" in name or "pvc-3" in name:
-        return "PVC-3 area17"
-    if "pvc11" in name or "pvc-11" in name:
-        return "PVC-11 monkey2"
-
-    raise ValueError(f"Cannot infer dataset name from filename: {path}")
-
-
-def first_existing(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Find a column by case-insensitive matching."""
-    lookup = {c.lower(): c for c in df.columns}
-
-    for cand in candidates:
-        key = cand.lower()
-        if key in lookup:
-            return lookup[key]
-
-    return None
-
-
-def load_one_csv(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(f"Missing input CSV: {path}")
-
-    df = pd.read_csv(path)
-
-    # Force canonical paper-facing dataset names from file path.
-    df["dataset"] = infer_dataset_name(path)
-
-    topm_col = first_existing(
-        df,
-        [
-            "top_m",
-            "topm",
-            "m",
-            "top_m_pairs",
-            "top_pairs",
-        ],
+def apply_style() -> None:
+    """Compact manuscript-style plotting defaults."""
+    plt.rcParams.update(
+        {
+            "figure.dpi": 160,
+            "savefig.dpi": 300,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.04,
+            "font.size": 8.5,
+            "axes.titlesize": 9.5,
+            "axes.labelsize": 8.8,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
+            "legend.fontsize": 8.2,
+            "axes.linewidth": 0.8,
+            "pdf.fonttype": 42,
+            "ps.fonttype": 42,
+        }
     )
-    if topm_col is None:
-        raise ValueError(
-            f"{path} is missing a top-m column. "
-            f"Available columns: {list(df.columns)}"
-        )
 
-    bic_col = first_existing(
-        df,
+
+def resolve_csv(cli_path: str | None) -> Path:
+    """Find the real-data summary CSV robustly across old/new filenames."""
+    here = Path(__file__).resolve().parent
+    root = here.parent
+
+    candidates: list[Path] = []
+    if cli_path:
+        candidates.append(Path(cli_path))
+
+    candidates.extend(
         [
-            "bicdiff_candidate_count",
-            "bic_diff_candidate_count",
-            "bicdiff_cand",
-            "bicdiff",
-            "BICdiff",
-            "BICcand",
-            "bic_candidate_count",
-        ],
+            here / "results" / "realdata" / "real04_summary_by_dataset_topm.csv",
+            root / "experiments" / "results" / "realdata" / "real04_summary_by_dataset_topm.csv",
+            Path.cwd() / "experiments" / "results" / "realdata" / "real04_summary_by_dataset_topm.csv",
+
+            # Legacy fallback names, kept only to avoid breaking older local copies.
+            here / "results" / "realdata" / "realdata_summary_by_dataset_topm.csv",
+            root / "experiments" / "results" / "realdata" / "realdata_summary_by_dataset_topm.csv",
+            Path.cwd() / "experiments" / "results" / "realdata" / "realdata_summary_by_dataset_topm.csv",
+        ]
     )
-    if bic_col is None:
-        raise ValueError(
-            f"{path} is missing a candidate-count BIC-diff column. "
-            f"Available columns: {list(df.columns)}"
-        )
 
-    df["top_m"] = pd.to_numeric(df[topm_col], errors="coerce")
-    df["bicdiff_candidate_count"] = pd.to_numeric(df[bic_col], errors="coerce")
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
 
-    df = df.dropna(subset=["top_m", "bicdiff_candidate_count"]).copy()
+    tried = "\n".join(f"  - {c}" for c in candidates)
+    raise SystemExit(f"Could not find the real-data summary CSV. Tried:\n{tried}")
+
+
+def validate_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate and standardise the summary table."""
+    required = {
+        "dataset",
+        "top_m",
+        "n_windows",
+        "positive_windows",
+        "mean_bicdiff_candidate_count",
+        "median_bicdiff_candidate_count",
+        "min_bicdiff_candidate_count",
+        "max_bicdiff_candidate_count",
+    }
+    missing = sorted(required - set(df.columns))
+    if missing:
+        raise ValueError(f"Missing required columns in summary CSV: {missing}")
+
+    df = df.copy()
     df["top_m"] = df["top_m"].astype(int)
+    df["n_windows"] = df["n_windows"].astype(int)
+    df["positive_windows"] = df["positive_windows"].astype(int)
 
-    # Keep only the paper-facing top-m values if extra rows exist.
-    df = df[df["top_m"].isin([1, 2, 3])].copy()
+    expected = {(ds, m) for ds in DATASET_ORDER for m in sorted(df["top_m"].unique())}
+    observed = {(str(r.dataset), int(r.top_m)) for r in df.itertuples()}
+    missing_rows = sorted(expected - observed)
+    if missing_rows:
+        raise ValueError(f"Missing dataset/top_m rows: {missing_rows}")
 
     return df
 
 
-def build_summary(combined: pd.DataFrame) -> pd.DataFrame:
-    summary = (
-        combined.groupby(["dataset", "top_m"], as_index=False)
-        .agg(
-            n_windows=("bicdiff_candidate_count", "size"),
-            positive_windows=("bicdiff_candidate_count", lambda x: int((x > 0).sum())),
-            mean_bicdiff_candidate_count=("bicdiff_candidate_count", "mean"),
-            median_bicdiff_candidate_count=("bicdiff_candidate_count", "median"),
-            min_bicdiff_candidate_count=("bicdiff_candidate_count", "min"),
-            max_bicdiff_candidate_count=("bicdiff_candidate_count", "max"),
-        )
-    )
+def positive_rate_percent(sub: pd.DataFrame) -> np.ndarray:
+    """Compute positive-window rate as percent from counts.
 
-    summary["positive_rate"] = (
-        100.0 * summary["positive_windows"] / summary["n_windows"]
-    )
-
-    dataset_rank = {ds: i for i, ds in enumerate(DATASET_ORDER)}
-    summary["dataset_rank"] = summary["dataset"].map(dataset_rank)
-    summary = summary.sort_values(["dataset_rank", "top_m"]).drop(columns=["dataset_rank"])
-
-    return summary
-
-
-def get_row(summary: pd.DataFrame, dataset: str, top_m: int) -> pd.Series | None:
-    row = summary[(summary["dataset"] == dataset) & (summary["top_m"] == top_m)]
-    if row.empty:
-        return None
-    return row.iloc[0]
-
-
-def setup_axis(ax) -> None:
-    ax.set_facecolor("white")
-    ax.grid(True, axis="y", color=GRID, linewidth=0.9, alpha=0.85)
-    ax.grid(False, axis="x")
-
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color(SPINE)
-    ax.spines["bottom"].set_color(SPINE)
-    ax.spines["left"].set_linewidth(1.0)
-    ax.spines["bottom"].set_linewidth(1.0)
-
-    ax.tick_params(axis="both", colors="#3D4451", labelsize=9.5)
-
-
-def plot_bic_stability(ax, summary: pd.DataFrame) -> None:
-    setup_axis(ax)
-
-    offsets = {
-        "ret-1": -0.08,
-        "PVC-3 area17": 0.00,
-        "PVC-11 monkey2": 0.08,
-    }
-
-    for dataset in DATASET_ORDER:
-        xs = []
-        means = []
-        err_low = []
-        err_high = []
-
-        for top_m in [1, 2, 3]:
-            row = get_row(summary, dataset, top_m)
-            if row is None:
-                continue
-
-            mean = float(row["mean_bicdiff_candidate_count"])
-            low = float(row["min_bicdiff_candidate_count"])
-            high = float(row["max_bicdiff_candidate_count"])
-
-            xs.append(top_m + offsets[dataset])
-            means.append(mean)
-            err_low.append(mean - low)
-            err_high.append(high - mean)
-
-        if not xs:
-            continue
-
-        ax.errorbar(
-            xs,
-            means,
-            yerr=[err_low, err_high],
-            fmt="o-",
-            color=PALETTE[dataset],
-            linewidth=2.25,
-            markersize=6.2,
-            capsize=3.8,
-            elinewidth=1.35,
-            markeredgecolor="white",
-            markeredgewidth=0.9,
-            alpha=0.96,
-            zorder=3,
-        )
-
-    ax.axhline(
-        0.0,
-        color="#667085",
-        linewidth=1.15,
-        linestyle=(0, (4, 2)),
-        alpha=0.9,
-        zorder=2,
-    )
-
-    ax.set_xlim(0.75, 3.25)
-    ax.set_xticks([1, 2, 3])
-    ax.set_xlabel("Top-m candidate pairs", fontsize=10.2, color=TEXT, labelpad=6)
-    ax.set_ylabel("Mean candidate-count ΔBIC", fontsize=10.2, color=TEXT, labelpad=8)
-    ax.set_title("(A) BIC stability", fontsize=12.5, fontweight="bold", color=TEXT, pad=12)
-
-
-def plot_positive_rate(ax, summary: pd.DataFrame) -> None:
-    setup_axis(ax)
-
-    topm_values = [1, 2, 3]
-    x = np.arange(len(topm_values), dtype=float)
-    width = 0.20
-
-    for j, dataset in enumerate(DATASET_ORDER):
-        heights = []
-        labels = []
-
-        for top_m in topm_values:
-            row = get_row(summary, dataset, top_m)
-            if row is None:
-                heights.append(np.nan)
-                labels.append("")
-            else:
-                heights.append(float(row["positive_rate"]))
-                labels.append(
-                    f'{int(row["positive_windows"])}/{int(row["n_windows"])}'
-                )
-
-        xpos = x + (j - 1) * width
-
-        bars = ax.bar(
-            xpos,
-            heights,
-            width=width,
-            color=PALETTE[dataset],
-            alpha=0.93,
-            edgecolor="white",
-            linewidth=1.0,
-            zorder=3,
-        )
-
-        # Put labels inside bars to avoid crowded labels above 100%.
-        for bar, lab, val in zip(bars, labels, heights):
-            if not lab or np.isnan(val):
-                continue
-
-            if val >= 25:
-                y = val - 5.5
-                va = "top"
-                color = "white"
-                weight = "bold"
-            else:
-                y = val + 3.0
-                va = "bottom"
-                color = "#384250"
-                weight = "normal"
-
-            ax.text(
-                bar.get_x() + bar.get_width() / 2,
-                y,
-                lab,
-                ha="center",
-                va=va,
-                fontsize=8.9,
-                fontweight=weight,
-                color=color,
-                zorder=4,
-            )
-
-    ax.set_xticks(x)
-    ax.set_xticklabels([str(m) for m in topm_values])
-    ax.set_xlim(-0.45, len(topm_values) - 0.55)
-    ax.set_ylim(0, 105)
-    ax.set_yticks([0, 25, 50, 75, 100])
-
-    ax.set_xlabel("Top-m candidate pairs", fontsize=10.2, color=TEXT, labelpad=6)
-    ax.set_ylabel("Positive-window rate (%)", fontsize=10.2, color=TEXT, labelpad=8)
-    ax.set_title("(B) Positive-window rate", fontsize=12.5, fontweight="bold", color=TEXT, pad=12)
-
-
-def plot_median_heatmap(ax, summary: pd.DataFrame, fig) -> None:
-    topm_values = [1, 2, 3]
-
-    mat = np.full((len(DATASET_ORDER), len(topm_values)), np.nan)
-
-    for i, dataset in enumerate(DATASET_ORDER):
-        for j, top_m in enumerate(topm_values):
-            row = get_row(summary, dataset, top_m)
-            if row is not None:
-                mat[i, j] = float(row["median_bicdiff_candidate_count"])
-
-    finite = mat[np.isfinite(mat)]
-    if finite.size == 0:
-        vmax = 20.0
-    else:
-        vmax = max(20.0, float(np.max(np.abs(finite))))
-
-    cmap = LinearSegmentedColormap.from_list(
-        "bic_support",
-        ["#D95F5F", "#F7F7F7", "#2F80C1"],
-    )
-    cmap.set_bad(color="white")
-
-    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
-
-    ax.imshow(
-        np.ma.masked_invalid(mat),
-        cmap=cmap,
-        norm=norm,
-        aspect="auto",
-        zorder=2,
-    )
-
-    ax.set_xticks(np.arange(len(topm_values)))
-    ax.set_xticklabels([str(m) for m in topm_values])
-
-    # Use compact R1/R2/R3 row labels; full names are already in the legend.
-    ax.set_yticks(np.arange(len(DATASET_ORDER)))
-    ax.set_yticklabels(["R1", "R2", "R3"])
-
-    ax.tick_params(axis="both", colors="#3D4451", labelsize=9.5)
-    ax.set_xlabel("Top-m candidate pairs", fontsize=10.2, color=TEXT, labelpad=6)
-    ax.set_title("(C) Median ?BIC support", fontsize=12.5, fontweight="bold", color=TEXT, pad=12)
-
-    for i in range(mat.shape[0]):
-        for j in range(mat.shape[1]):
-            val = mat[i, j]
-            if np.isfinite(val):
-                txt = f"{val:.1f}"
-            else:
-                txt = "?"
-
-            color = "white" if np.isfinite(val) and abs(val) > 0.55 * vmax else "#1F2937"
-
-            ax.text(
-                j,
-                i,
-                txt,
-                ha="center",
-                va="center",
-                fontsize=10.2,
-                fontweight="bold",
-                color=color,
-            )
-
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
-    ax.set_xticks(np.arange(-0.5, len(topm_values), 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, len(DATASET_ORDER), 1), minor=True)
-    ax.grid(which="minor", color="white", linewidth=2.2)
-    ax.tick_params(which="minor", bottom=False, left=False)
-
-
-def print_summary(summary: pd.DataFrame) -> None:
-    display = summary.copy()
-    display["positive"] = (
-        display["positive_windows"].astype(int).astype(str)
-        + "/"
-        + display["n_windows"].astype(int).astype(str)
-    )
-
-    print("\nSummary by dataset and top_m")
-    print("-" * 100)
-    print(
-        display[
-            [
-                "dataset",
-                "top_m",
-                "positive",
-                "positive_rate",
-                "mean_bicdiff_candidate_count",
-                "median_bicdiff_candidate_count",
-                "min_bicdiff_candidate_count",
-                "max_bicdiff_candidate_count",
-            ]
-        ].to_string(index=False, float_format=lambda x: f"{x:.3f}")
-    )
+    This avoids ambiguity because some CSVs store positive_rate as 100.0,
+    while others may store it as 1.0.
+    """
+    return 100.0 * sub["positive_windows"].to_numpy(dtype=float) / sub["n_windows"].to_numpy(dtype=float)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--inputs",
-        nargs="*",
-        default=[str(p) for p in DEFAULT_INPUTS],
-        help="Per-dataset real-data CSV files.",
-    )
-    parser.add_argument(
-        "--results-dir",
-        default=str(RESULTS_DIR),
-        help="Directory for combined and summary CSV outputs.",
-    )
-    parser.add_argument(
-        "--fig-dir",
-        default=str(FIG_DIR),
-        help="Directory for panel figure outputs.",
-    )
+    parser.add_argument("--csv", default=None, help="Path to real04_summary_by_dataset_topm.csv")
+    parser.add_argument("--fig-dir", default=None, help="Output directory for figures")
     args = parser.parse_args()
 
-    results_dir = Path(args.results_dir)
-    fig_dir = Path(args.fig_dir)
-    results_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = resolve_csv(args.csv)
+    df = validate_summary(pd.read_csv(csv_path))
+
+    here = Path(__file__).resolve().parent
+    fig_dir = Path(args.fig_dir) if args.fig_dir else here.parent / "figures" / "realdata"
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    dfs = [load_one_csv(Path(p)) for p in args.inputs]
-    combined = pd.concat(dfs, ignore_index=True)
+    apply_style()
 
-    dataset_rank = {ds: i for i, ds in enumerate(DATASET_ORDER)}
-    combined["dataset_rank"] = combined["dataset"].map(dataset_rank)
-    combined = (
-        combined.sort_values(["dataset_rank", "top_m"])
-        .drop(columns=["dataset_rank"])
-        .reset_index(drop=True)
-    )
-
-    summary = build_summary(combined)
-
-    combined_csv = results_dir / "real04_combined.csv"
-    summary_csv = results_dir / "real04_summary_by_dataset_topm.csv"
-
-    combined.to_csv(combined_csv, index=False)
-    summary.to_csv(summary_csv, index=False)
-
-    plt.rcParams.update(
-        {
-            "font.family": "DejaVu Sans",
-            "axes.titleweight": "bold",
-            "axes.labelcolor": TEXT,
-            "savefig.dpi": 300,
-        }
-    )
-
-    fig, axes = plt.subplots(
+    topm = sorted(df["top_m"].unique())
+    fig, (axA, axB, axC) = plt.subplots(
         1,
         3,
-        figsize=(16.2, 5.8),
-        gridspec_kw={"width_ratios": [1.05, 1.05, 1.05]},
+        figsize=(10.8, 3.55),
+        gridspec_kw={"width_ratios": [1.05, 1.05, 1.14], "wspace": 0.32},
     )
-    fig.patch.set_facecolor("white")
 
-    plot_bic_stability(axes[0], summary)
-    plot_positive_rate(axes[1], summary)
-    plot_median_heatmap(axes[2], summary, fig)
+    # ------------------------------------------------------------------
+    # (a) BIC stability: mean with min-max whiskers
+    # ------------------------------------------------------------------
+    for ds in DATASET_ORDER:
+        sub = df[df["dataset"] == ds].sort_values("top_m")
+        x = sub["top_m"].to_numpy(dtype=float)
+        mean = sub["mean_bicdiff_candidate_count"].to_numpy(dtype=float)
+        lo = mean - sub["min_bicdiff_candidate_count"].to_numpy(dtype=float)
+        hi = sub["max_bicdiff_candidate_count"].to_numpy(dtype=float) - mean
+        color = DATASET_COLORS[ds]
 
+        axA.errorbar(
+            x,
+            mean,
+            yerr=[lo, hi],
+            color=color,
+            marker=MARKERS[ds],
+            markersize=5.8,
+            markerfacecolor=color,
+            markeredgecolor="white",
+            markeredgewidth=0.8,
+            linewidth=2.0,
+            capsize=3,
+            elinewidth=1.15,
+            label=DATASET_SHORT[ds],
+            zorder=3,
+        )
+
+    axA.axhline(0, color="0.45", linestyle="--", linewidth=0.9, zorder=1)
+    axA.set_xticks(topm)
+    axA.set_xlabel(r"top-$m$ candidate pairs")
+    axA.set_ylabel(r"candidate-count $\Delta$BIC")
+    axA.set_title("(a) held-out BIC stability", loc="left")
+    axA.grid(axis="y", color="0.90", linewidth=0.7)
+    axA.set_axisbelow(True)
+    for spine in ("top", "right"):
+        axA.spines[spine].set_visible(False)
+
+    # ------------------------------------------------------------------
+    # (b) Positive-window rate: grouped bars
+    # ------------------------------------------------------------------
+    n_ds = len(DATASET_ORDER)
+    width = 0.26
+    x0 = np.arange(len(topm))
+
+    for i, ds in enumerate(DATASET_ORDER):
+        sub = df[df["dataset"] == ds].set_index("top_m").reindex(topm)
+        rate = positive_rate_percent(sub)
+        pos = sub["positive_windows"].to_numpy(dtype=int)
+        nwin = sub["n_windows"].to_numpy(dtype=int)
+        xs = x0 + (i - (n_ds - 1) / 2) * width
+
+        axB.bar(
+            xs,
+            rate,
+            width=width,
+            color=DATASET_COLORS[ds],
+            edgecolor="white",
+            linewidth=0.6,
+            label=DATASET_SHORT[ds],
+            zorder=3,
+        )
+
+        for xb, r, pp, nn in zip(xs, rate, pos, nwin):
+            axB.text(
+                xb,
+                min(r + 3.0, 111.0),
+                f"{pp}/{nn}",
+                ha="center",
+                va="bottom",
+                fontsize=7.5,
+                color="0.25",
+            )
+
+    axB.axhline(100, color="0.75", linestyle=":", linewidth=0.9, zorder=1)
+    axB.set_xticks(x0)
+    axB.set_xticklabels([str(m) for m in topm])
+    axB.set_ylim(0, 116)
+    axB.set_yticks([0, 25, 50, 75, 100])
+    axB.set_xlabel(r"top-$m$ candidate pairs")
+    axB.set_ylabel("positive windows (%)")
+    axB.set_title("(b) positive-window rate", loc="left")
+    axB.grid(axis="y", color="0.90", linewidth=0.7)
+    axB.set_axisbelow(True)
+    for spine in ("top", "right"):
+        axB.spines[spine].set_visible(False)
+
+    # ------------------------------------------------------------------
+    # (c) Median BIC heatmap, centred at zero
+    # ------------------------------------------------------------------
+    M = np.array(
+        [
+            [
+                df[(df["dataset"] == ds) & (df["top_m"] == m)]
+                ["median_bicdiff_candidate_count"]
+                .iloc[0]
+                for m in topm
+            ]
+            for ds in DATASET_ORDER
+        ],
+        dtype=float,
+    )
+
+    vmax = max(float(np.abs(M).max()), 1e-9)
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
+
+    im = axC.imshow(M, cmap="RdBu", norm=norm, aspect="auto")
+    axC.set_xticks(range(len(topm)))
+    axC.set_xticklabels([str(m) for m in topm])
+    axC.set_yticks(range(len(DATASET_ORDER)))
+    axC.set_yticklabels([DATASET_SHORT[d] for d in DATASET_ORDER])
+    axC.set_xlabel(r"top-$m$ candidate pairs")
+    axC.set_title(r"(c) median $\Delta$BIC", loc="left")
+
+    for i in range(M.shape[0]):
+        for j in range(M.shape[1]):
+            value = M[i, j]
+            text_color = "white" if abs(value) > 0.55 * vmax else "0.15"
+            axC.text(
+                j,
+                i,
+                f"{value:.1f}",
+                ha="center",
+                va="center",
+                color=text_color,
+                fontsize=9,
+            )
+
+    for spine in axC.spines.values():
+        spine.set_visible(False)
+    axC.tick_params(length=0)
+
+    cb = fig.colorbar(im, ax=axC, fraction=0.046, pad=0.04)
+    cb.set_label(r"median $\Delta$BIC", fontsize=8.5)
+    cb.ax.tick_params(labelsize=8)
+    cb.outline.set_visible(False)
+
+    # ------------------------------------------------------------------
+    # Shared legend and title
+    # ------------------------------------------------------------------
     handles = [
         Line2D(
             [0],
             [0],
-            color=PALETTE[ds],
-            marker="o",
-            linewidth=2.4,
-            markersize=6.2,
+            color=DATASET_COLORS[ds],
+            marker=MARKERS[ds],
+            markersize=6,
+            markerfacecolor=DATASET_COLORS[ds],
             markeredgecolor="white",
-            markeredgewidth=0.9,
-            label=DATASET_LABELS[ds],
+            markeredgewidth=0.8,
+            linewidth=2.0,
+            label=DATASET_SHORT[ds],
         )
         for ds in DATASET_ORDER
     ]
 
-    # Manual layout. Do not use tight_layout here; it causes header overlap.
-    fig.subplots_adjust(
-        left=0.055,
-        right=0.970,
-        bottom=0.155,
-        top=0.745,
-        wspace=0.30,
-    )
-
-    fig.suptitle(
-        "Formal real-data summary",
-        fontsize=16.0,
-        fontweight="bold",
-        color=TEXT,
-        y=0.965,
-    )
-
     fig.legend(
         handles=handles,
         loc="upper center",
+        bbox_to_anchor=(0.50, 1.03),
         ncol=3,
         frameon=False,
-        fontsize=10.5,
-        bbox_to_anchor=(0.5, 0.905),
+        handlelength=1.8,
         columnspacing=2.2,
-        handlelength=2.6,
-        handletextpad=0.55,
     )
 
-    fig.text(
-        0.5,
-        0.835,
-        "Candidate-count ΔBIC is the primary held-out statistic. Positive values favor the HTH model after candidate-complexity penalty.",
-        ha="center",
-        va="center",
-        fontsize=9.7,
-        color=MUTED_TEXT,
+    fig.suptitle(
+        "Formal held-out real-data summary "
+        r"(candidate-count $\Delta$BIC; positive favours HTH)",
+        fontsize=11,
+        y=1.125,
     )
 
     out_png = fig_dir / "real04_summary_panel.png"
     out_pdf = fig_dir / "real04_summary_panel.pdf"
 
-    fig.savefig(out_png, dpi=300, bbox_inches="tight", facecolor="white")
-    fig.savefig(out_pdf, bbox_inches="tight", facecolor="white")
+    fig.savefig(out_png)
+    fig.savefig(out_pdf)
     plt.close(fig)
 
-    print_summary(summary)
-
-    print("\nSaved:")
-    print(f"  {combined_csv}")
-    print(f"  {summary_csv}")
-    print(f"  {out_png}")
-    print(f"  {out_pdf}")
+    print(f"Read:  {csv_path}")
+    print(f"Saved: {out_png}")
+    print(f"Saved: {out_pdf}")
 
 
 if __name__ == "__main__":
