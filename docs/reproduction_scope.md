@@ -6,7 +6,7 @@ The numerical implementation, fixed scientific configurations, seed rules,
 convergence criteria, and saved figure/table inputs are those used for the
 reported study. The record verifier and documentation do not refit models or
 replace numerical results. `docs/code_manifest.json` retains the study code
-identifier `HTH_JSCS_v2`; release file checksums are in `FILELIST.sha256`.
+identifier `HTH_JSCS_v2`.
 
 The studies use free nonnegative group coefficients. The legacy CP tensor API
 remains in the shared code but is not the fitted model used in the reported

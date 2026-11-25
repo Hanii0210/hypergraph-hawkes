@@ -37,14 +37,9 @@ Each synthetic dataset is located at
 - `comparisons.json`: paired test-score differences for the prespecified
   model comparisons.
 
-The records retain their scientific values. Absolute private machine paths
-in added record copies are replaced with relative or descriptive paths.
-`records/provenance.jsonl` identifies each source record, its source and release
-hashes, and any changed metadata field. A changed path's original text is
-represented by its hash rather than disclosed.
-Eight record copies contain 37 such path replacements. The other 6785 original
-record copies retain their source bytes. All scientific numeric values remain
-unchanged in both groups.
+The source archive and member path for each endpoint appear in
+`records/provenance.jsonl`. For records that refer to a study machine, the
+same entry lists the fields where a local path was replaced.
 
 Paths such as `start_1.json` inside `fit.json` and `code_snapshot` paths in
 environment metadata refer to the original experiment directories. Complete
@@ -68,8 +63,7 @@ calculated from the saved records, not from newly fitted models. They do not
 contain every objective value, every parameter iterate, or the full parameter
 arrays of unselected starts.
 
-The `original_record` object gives the source archive, source member path,
-and SHA-256. Its `included_in_package` field is false for full start records
+The `original_record` object gives the source archive and member path. Its `included_in_package` field is false for full start records
 represented only by a derived row. See [field definitions](record_schema.md).
 
 ## Verification

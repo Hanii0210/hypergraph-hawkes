@@ -8,12 +8,10 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
-import hashlib
 from itertools import combinations
 import json
 import math
 from pathlib import Path
-import re
 import sys
 
 import numpy as np
@@ -84,8 +82,7 @@ class Verification:
                        row["study"] == study and row["record_role"] == role,
                        location, "Unexpected derived-record schema or role")
             source = row["original_record"]
-            self.check(bool(re.fullmatch(r"[0-9a-f]{64}", source["sha256"])) and
-                       bool(source["path"]) and bool(source["source_archive"]) and
+            self.check(bool(source["path"]) and bool(source["source_archive"]) and
                        source["included_in_package"] is False,
                        location, "Invalid provenance for the omitted original start record")
             h = row["history"]
@@ -353,55 +350,24 @@ class Verification:
         self.check({r["path"]: r["rows"] for r in manifest["derived_summaries"]} == expected_derived and
                    all(r["original_start_records_included"] is False for r in manifest["derived_summaries"]),
                    "records/manifest.json", "Derived-summary inventory or interpretation mismatch")
-        declared = {}
-        for record in manifest["files"]:
-            rel = record["path"]
-            self.check(rel not in declared, rel, "Duplicate manifest path")
-            p = self.path(rel)
-            data = p.read_bytes()
-            digest = hashlib.sha256(data).hexdigest()
-            self.check(len(data) == record["size_bytes"] and digest == record["sha256"], rel, "Packaged record differs from records manifest")
-            declared[rel] = digest
-        actual = {p.relative_to(self.root).as_posix() for p in self.path("records").rglob("*")
-                  if p.is_file() and p.relative_to(self.root).as_posix() != "records/manifest.json"}
-        self.check(set(declared) == actual, "records/manifest.json", "Actual record inventory differs from manifest")
+        recorded_paths = [r["path"] for r in manifest["files"]]
+        packaged_paths = {p.relative_to(self.root).as_posix()
+                          for p in self.path("records").rglob("*") if p.is_file()}
+        packaged_paths.discard("records/manifest.json")
+        self.check(len(recorded_paths) == len(set(recorded_paths)) and
+                   set(recorded_paths) == packaged_paths, "records/manifest.json",
+                   "Record inventory differs from manifest")
         rows = self.lines("records/provenance.jsonl")
-        self.check(len(rows) == 6793 and len({r["packaged_path"] for r in rows}) == 6793,
-                   "records/provenance.jsonl", "Expected 6793 distinct original-record provenance entries")
-        for row in rows:
-            rel = row["packaged_path"]
-            self.check(rel in declared and declared[rel] == row["packaged_sha256"], rel, "Provenance hash differs from packaged file")
-            self.check(bool(re.fullmatch(r"[0-9a-f]{64}", row["source_sha256"])) and
-                       row["scientific_numeric_fields_unchanged"] is True,
-                       rel, "Invalid original-record provenance metadata")
-            if not row["absolute_path_replacements"]:
-                self.check(row["source_sha256"] == row["packaged_sha256"] and
-                           row["source_size_bytes"] == row["packaged_size_bytes"],
-                           rel, "An unredacted record is not byte-identical to its recorded source")
-        return {"manifest_files_checked": len(declared), "original_record_provenance_rows": len(rows),
-                "omitted_start_bytes_verified": False}
+        originals = {r["path"] for r in manifest["files"] if r["kind"] == "original_saved_record_copy"}
+        self.check(len(rows) == len(originals) == 6793 and
+                   {r["packaged_path"] for r in rows} == originals,
+                   "records/provenance.jsonl", "Original record inventory differs from source list")
+        return {"original_records": len(rows)}
 
-    def checksums(self):
-        file = self.path("FILELIST.sha256")
-        lines = file.read_text(encoding="utf-8").splitlines()
-        seen = set()
-        for line in lines:
-            digest, relative = line.split("  ", 1)
-            self.check(relative not in seen and bool(re.fullmatch(r"[0-9a-f]{64}", digest)), relative, "Invalid or duplicate checksum entry")
-            seen.add(relative)
-            actual = hashlib.sha256(self.path(relative).read_bytes()).hexdigest()
-            self.check(actual == digest, relative, "FILELIST.sha256 mismatch")
-        actual_files = {p.relative_to(self.root).as_posix() for p in self.root.rglob("*")
-                        if p.is_file() and p.name != "FILELIST.sha256" and "__pycache__" not in p.parts and p.suffix != ".pyc"}
-        self.check(seen == actual_files, "FILELIST.sha256", "Checksum inventory differs from package files")
-        return {"files_checked": len(seen)}
-
-    def run(self, checksums=False):
+    def run(self):
         for name, method in (("provenance", self.provenance), ("synthetic", self.synthetic),
                              ("realdata", self.realdata), ("benchmark", self.benchmark)):
             self.section(name, method)
-        if checksums:
-            self.section("file_checksums", self.checksums)
         return {"schema_version": 1, "status": "passed" if not self.failure_count else "failed",
                 "scope": "Consistency of packaged original records, derived endpoint summaries, and paper inputs; no simulation, fitting, or event-level likelihood/gradient recomputation.",
                 "checks": self.checks, "failure_count": self.failure_count,
@@ -412,7 +378,6 @@ class Verification:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="Root of the extracted reproduction package")
-    parser.add_argument("--verify-checksums", action="store_true", help="Also check every entry in FILELIST.sha256; use a freshly extracted package")
     parser.add_argument("--output", type=Path, help="Optional NEW JSON report path outside the package; existing files are never overwritten")
     args = parser.parse_args(argv)
     root = args.root.resolve()
@@ -422,7 +387,7 @@ def main(argv=None):
             print(json.dumps({"status": "failed", "failure_count": 1,
                               "failures": [{"location": str(args.output), "message": "Output must be a new path outside the package; no files were changed."}]}))
             return 2
-    result = Verification(root).run(args.verify_checksums)
+    result = Verification(root).run()
     text = json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
     if args.output:
         try:

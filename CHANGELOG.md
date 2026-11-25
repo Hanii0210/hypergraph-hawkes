@@ -6,7 +6,7 @@
   inputs without changes to the numerical methods or reported results.
 - Include synthetic endpoint records, neural window metadata, benchmark
   records, and compact summaries of individual optimization starts.
-- Add a verifier for record consistency and release checksums.
+- Add a verifier for record consistency.
 - Document the record schema, experiment workflows, recorded environments,
   and floating-point completion-window convention.
 - Provide official CRCNS dataset links and required recording filenames;

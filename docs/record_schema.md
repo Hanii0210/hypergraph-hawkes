@@ -79,22 +79,15 @@ history arrays. Those complete arrays are not included in the compact rows.
 These values summarize recorded trajectories. They do not constitute an
 independent recomputation of event-level objectives or gradients.
 
-## Source and transformation provenance
+## Source records
 
-Each derived row has an `original_record` object with `source_archive`, `path`,
-`sha256`, and `included_in_package`. For these summaries,
-`included_in_package` is false: the named full source start record is identified
-for provenance but is not a file in the compact archive.
+Each derived row identifies its full start record by `original_record.source_archive`
+and `original_record.path`. The field `included_in_package` is false for these
+full start records.
 
-`records/provenance.jsonl` covers the copied original endpoint and metadata
-records. It gives the packaged path, source archive/member, source and packaged
-SHA-256 hashes, byte sizes, a type-aware numeric-field hash, and any absolute
-machine-path replacements. Each replacement identifies its JSON pointer,
-replacement value, rule, and a hash of the undisclosed original path.
-Scientific numeric values are retained.
+`records/provenance.jsonl` maps each packaged endpoint or metadata file to its
+source archive and member. For records with local machine paths, the entry also
+lists the affected JSON fields and replacement paths.
 
-`records/manifest.json` lists record counts, source-archive identities,
-omissions, transformation counts, and file hashes. `FILELIST.sha256` covers
-the complete release. Historical `start_records`, `code_snapshot`, and source
-archive paths identify the original working records; they may reference
-material intentionally omitted from this compact distribution.
+`records/manifest.json` lists the record files, row counts, source archives,
+and derived summaries.
