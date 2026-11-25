@@ -1,329 +1,175 @@
-<div align="center">
-
-# 🔥 Hypergraph Hawkes
-
-### Closed-form EM inference for **hyperedge-triggered Hawkes processes**
-
-<p>
-  <a href="https://github.com/Hanii0210/hypergraph-hawkes">
-    <img alt="GitHub repo" src="https://img.shields.io/badge/GitHub-hypergraph--hawkes-181717?logo=github">
-  </a>
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white">
-  <img alt="NumPy" src="https://img.shields.io/badge/NumPy-supported-013243?logo=numpy">
-  <img alt="SciPy" src="https://img.shields.io/badge/SciPy-supported-8CAAE6?logo=scipy">
-  <img alt="Matplotlib" src="https://img.shields.io/badge/Figures-Matplotlib-11557C">
-  <img alt="Status" src="https://img.shields.io/badge/Status-research%20prototype-orange">
-</p>
-
-<p>
-  <a href="#-overview">Overview</a> •
-  <a href="#-model">Model</a> •
-  <a href="#-experiments">Experiments</a> •
-  <a href="#-data-sources">Data sources</a> •
-  <a href="#-synthetic-highlights">Synthetic</a> •
-  <a href="#-real-data">Real data</a> •
-  <a href="#-quick-start">Quick start</a>
-</p>
-
-<br>
-
-<p align="center">
-  <em><strong>Can higher-order event patterns be separated from ordinary pairwise excitation?</strong><br>
-  This repository studies hyperedge-triggered Hawkes processes as a lightweight way to detect group-level temporal interactions in event streams.</em>
-</p>
-
-<br>
-
-<img src="figures/hth_combo_data.png" alt="Hyperedge-triggered Hawkes mechanism" width="860">
-
-<br>
-
-**Higher-order temporal dependence · Hypergraph interactions · EM inference · Point processes**
-
-</div>
-
----
-
-## 🌟 Overview
-
-**Hypergraph Hawkes** is a research codebase for modeling event streams where **groups of past events**, rather than only individual past events, can trigger future activity.
-
-Classical multivariate Hawkes processes model pairwise excitation:
-
-> an event from node `i` increases the future intensity of node `j`.
-
-This project extends that idea to **hyperedge-triggered Hawkes processes (HTH)**:
-
-> a group of source nodes firing within a short activation window can activate an additional higher-order excitation term.
-
-The repository contains:
-
-- 🧠 hyperedge-triggered Hawkes models for higher-order temporal interactions;
-- ⚙️ closed-form EM-style inference with latent branching responsibilities;
-- 📈 synthetic experiments ordered as `Syn 01`--`Syn 10`;
-- 🧪 supplementary diagnostics ordered as `Supp A`--`Supp E`;
-- 🧬 formal real-data scripts ordered as `Real 01`--`Real 04`;
-- 🖼️ publication-style figures for model intuition, synthetic validation, and real-data stability.
-
----
-
-## 🧩 Model
-
-For target node `n`, the conditional intensity is:
-
-<p align="center">
-  <img src="figures/readme/formula_model.png" alt="HTH conditional intensity formula" width="860">
-</p>
-
-where:
-
-| Symbol | Meaning |
-|---|---|
-| `μ_n` | background rate of node `n` |
-| `α_{i→n}` | pairwise excitation from node `i` to node `n` |
-| `e` | candidate hyperedge |
-| `α_e` | higher-order hyperedge-triggered excitation |
-| `φ(·)` | temporal kernel |
-| `t_anchor(e,t)` | activation anchor time of the hyperedge pattern |
-
-The primary real-data model-comparison statistic is candidate-count BIC:
-
-<p align="center">
-  <img src="figures/readme/formula_bic.png" alt="Candidate-count BIC formula" width="820">
-</p>
-
-Positive values favor the HTH model after penalizing the number of candidate hyperedges.
-
-> ⚠️ Active-edge-count BIC is used only as a diagnostic.  
-> Formal real-data claims use candidate-count BIC.
-
----
-
-## 🧪 Experiments
-
-The project uses paper-facing experiment names.
-
-### 🚀 Main synthetic experiments
-
-| ID | Script | Role |
-|---:|---|---|
-| Syn 01 | `experiments/syn01_recovery_robustness.py` | parameter recovery and robustness |
-| Syn 02 | `experiments/syn02_regularization_path.py` | regularization path and sparsity control |
-| Syn 03 | `experiments/syn03_em_convergence.py` | EM convergence from random initializations |
-| Syn 04 | `experiments/syn04_strength_sensitivity.py` | interaction-strength sensitivity |
-| Syn 05 | `experiments/syn05_likelihood_separation.py` | pairwise confounding and likelihood separation |
-| Syn 06 | `experiments/syn06_trigger_window_sensitivity.py` | trigger-window sensitivity |
-| Syn 07 | `experiments/syn07_scalability.py` | computational scalability |
-| Syn 08 | `experiments/syn08_bias_ablation.py` | kernel-timescale bias / variance ablation |
-| Syn 09 | `experiments/syn09_identification_diagnostic.py` | candidate nomination and detectability |
-| Syn 10 | `experiments/syn10_interaction_baseline.py` | interaction-baseline comparison |
-
-### 📎 Supplementary experiments
-
-| ID | Script | Role |
-|---:|---|---|
-| Supp A | `experiments/suppA_recovery_demo.py` | single-seed recovery demo |
-| Supp B | `experiments/suppB_copula_validation.py` | copula tail-dependence validation |
-| Supp C | `experiments/suppC_3node_hyperedge.py` | minimal 3-node hyperedge example |
-| Supp D | `experiments/suppD_rank_sweep.py` | CP-rank sweep |
-| Supp E | `experiments/suppE_calibration.py` | calibration / selective-inference diagnostic |
-
-### 🧬 Formal real-data experiments
-
-| ID | Script | Dataset / role |
-|---:|---|---|
-| Real 01 | `experiments/real01_ret1.py` | ret-1 retina |
-| Real 02 | `experiments/real02_pvc3.py` | PVC-3 area 17 |
-| Real 03 | `experiments/real03_pvc11.py` | PVC-11 monkey 2 |
-| Real 04 | `experiments/real04_plot_summary.py` | real-data summary panel |
-
-See [`experiments/EXPERIMENTS.md`](experiments/EXPERIMENTS.md) for the complete inventory.
-
----
-
-## 🗃️ Data sources
-
-Raw datasets are **not included** in this repository. The project expects local data under `data/raw/`, which is ignored by Git.
-
-The formal real-data analysis uses three spike-train datasets:
-
-| ID | Dataset | Current role |
-|---:|---|---|
-| R1 | ret-1 retina | formal held-out HTH comparison |
-| R2 | PVC-3 area 17 | formal held-out HTH comparison |
-| R3 | PVC-11 monkey 2 | formal held-out HTH comparison |
-
-### G-Node exploratory data
-
-The repository also keeps a legacy G-Node-style exploratory path for a binned pseudo-event dataset. This is useful as a smoke-test / development example, but it is **not** used as formal evidence for HTH effects in the current paper-facing analysis.
-
-In short:
-
-- G-Node-style data were used for early exploratory checks;
-- the binned pseudo-event representation is treated cautiously;
-- formal claims are based on `Real 01`--`Real 03`;
-- legacy G-Node-related scripts are kept under `archive/legacy_realdata_scripts/`.
-
----
-
-## 📈 Synthetic highlights
-
-### Syn 01 — recovery and robustness
-
-<p align="center">
-  <img src="figures/synthetic/syn01_recovery_robustness.png" alt="Syn 01 recovery robustness" width="660">
-</p>
-
-### Syn 05 — likelihood separation
-
-<p align="center">
-  <img src="figures/synthetic/syn05_likelihood_separation.png" alt="Syn 05 likelihood separation" width="660">
-</p>
-
-### Syn 08 — bias ablation
-
-<p align="center">
-  <img src="figures/synthetic/syn08_bias_ablation.png" alt="Syn 08 bias ablation" width="660">
-</p>
-
----
-
-## 🧬 Real data
-
-Formal real-data analysis is summarized through candidate-count BIC on held-out windows.
-
-<p align="center">
-  <img src="figures/realdata/real04_summary_panel.png" alt="Formal real-data summary panel" width="940">
-</p>
-
-### 📌 Current real-data summary
-
-| Dataset | top-m | Positive windows | Mean ΔBIC | Median ΔBIC |
-|---|---:|---:|---:|---:|
-| ret-1 | 1 | 5/5 | 8.322 | 8.677 |
-| ret-1 | 2 | 3/5 | 1.856 | 2.132 |
-| ret-1 | 3 | 2/5 | -2.565 | -3.692 |
-| PVC-3 area17 | 1 | 5/5 | 21.391 | 19.801 |
-| PVC-3 area17 | 2 | 5/5 | 12.822 | 9.887 |
-| PVC-3 area17 | 3 | 4/5 | 6.486 | 7.232 |
-| PVC-11 monkey2 | 1 | 5/5 | 14.479 | 12.020 |
-| PVC-11 monkey2 | 2 | 5/5 | 10.821 | 8.732 |
-| PVC-11 monkey2 | 3 | 4/5 | 13.814 | 5.840 |
-
-**Interpretation.** The cortex datasets show more stable HTH evidence across candidate sizes, while ret-1 becomes more fragile as additional candidate pairs are included.
-
----
-
-## ⚡ Quick start
-
-### 1. Clone
-
-```bash
-git clone https://github.com/Hanii0210/hypergraph-hawkes.git
-cd hypergraph-hawkes
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Run tests
-
-```bash
-python run_tests.py
-```
-
-### 4. Run the quick pipeline
-
-```bash
-python run_all.py --quick
-```
-
-### 5. Regenerate the real-data summary panel
-
-```bash
-python experiments/real04_plot_summary.py
-```
-
-### 6. Run the BIC smoke check with your own event CSV
-
-```powershell
-python experiments\checks\smoke_hth_bic_checked.py `
-  --csv path\to\events.csv `
-  --T 40.0 `
-  --top-m-pairs 1 `
-  --n-iter 1
-```
-
-Use the actual observation horizon for `--T`.
-
----
-
-## 🗂️ Repository layout
+# Hyperedge-triggered Hawkes processes
+
+Research code and saved study records for **Hyperedge-Triggered Hawkes Processes
+for Diagnosing Higher-Order Temporal Dependence in Event Streams**, by Zihan Xu,
+*Journal of Statistical Computation and Simulation*.
+Article DOI: [10.1080/00949655.2026.2762892](https://doi.org/10.1080/00949655.2026.2762892).
+
+The archive contains the numerical implementation, fixed study configurations,
+and figure/table inputs used for the reported results, together with compact
+run records and a record-verification script. The numerical implementation,
+configuration values, seed rules, and saved paper inputs are unchanged.
+The studies use free group coefficients; the tensor module is retained as a
+dependency of the shared inference code.
+
+Extract the archive into a new directory and run commands from its
+`hypergraph_hawkes` root. The three workflows below serve different purposes:
+rebuild the paper outputs, inspect the saved records, or rerun the experiments.
+
+## Environment
+
+Install the dependencies in a Python environment:
 
 ```text
-hypergraph_hawkes/
-|-- models/
-|   |-- kernel.py
-|   |-- likelihood.py
-|   `-- tensor_param.py
-|-- inference/
-|   |-- e_step.py
-|   |-- m_step.py
-|   |-- em.py
-|   `-- candidate_filter.py
-|-- simulation/
-|   |-- simulator.py
-|   `-- data_loader.py
-|-- experiments/
-|   |-- syn01_*.py ... syn10_*.py
-|   |-- suppA_*.py ... suppE_*.py
-|   |-- real01_ret1.py
-|   |-- real02_pvc3.py
-|   |-- real03_pvc11.py
-|   |-- real04_plot_summary.py
-|   |-- realdata_pipeline.py
-|   |-- checks/
-|   |-- schematics/
-|   |-- results/
-|   |   |-- synthetic/
-|   |   `-- realdata/
-|   `-- EXPERIMENTS.md
-|-- figures/
-|   |-- synthetic/
-|   `-- realdata/
-|-- archive/
-|   `-- legacy_realdata_scripts/
-|-- tests/
-|-- run_all.py
-|-- run_tests.py
-`-- README.md
+python -m pip install -r requirements.txt
 ```
 
----
+The study run metadata record Python 3.14.7, NumPy 2.5.2, and SciPy 1.18.0 on
+Windows 11. `requirements.txt` specifies lower bounds rather than a locked
+environment. Numerical endpoints and timings can depend on the platform.
+NumPy 2.0 or later is required for `numpy.trapezoid`.
 
-## 🧾 Notes
+## 1. Rebuild figures and tables
 
-- Raw datasets are **not** included in this repository.
-- Large binary artifacts such as `.pkl` and `.npy` are ignored.
-- Formal real-data outputs are stored in `experiments/results/realdata/`.
-- Synthetic figures are stored in `figures/synthetic/`.
-- The real-data summary panel is stored at `figures/realdata/real04_summary_panel.png`.
-- Legacy exploratory scripts are archived under `archive/legacy_realdata_scripts/`.
+```text
+python paper/make_tables.py
+python paper/make_figures.py
+```
 
----
+These commands use the saved full-precision inputs in `paper/data`; they do not
+simulate or fit models and need no raw neural recordings. They write to
+`paper/tables`, `paper/figure`, and the generated CSV files in `paper/data`.
+The plotting scripts request Times New Roman and STIX mathematics. Install
+Times New Roman if the original typography is required.
 
-## 📚 Citation
+## 2. Verify the saved records
 
-This repository is a research prototype.  
-If you use or adapt the code, please cite the repository URL and the associated manuscript when available.
+```text
+python scripts/verify_saved_records.py
+```
 
----
+The verifier checks the archived record counts, seeds and start selection,
+recorded convergence diagnostics, correspondence with the paper inputs, and
+benchmark summaries. It reads `records` and `paper/data`; it does not load raw
+spike trains, simulate events, or refit models. Its default output is a JSON
+report on the console. A successful check exits with status 0.
 
-<div align="center">
+To check the release file hashes as well, run this command before regenerating
+figures or tables, which can overwrite files covered by the checksum list:
 
-### 🔥 Hyperedge-triggered event modeling for higher-order temporal dependence
+```text
+python scripts/verify_saved_records.py --verify-checksums
+```
 
-</div>
+The compact start records retain endpoint diagnostics and summaries of the
+optimization histories, not every iteration. Verification of these records is
+distinct from recalculating likelihoods and gradients from the original event
+streams. See [records and schema](docs/run_records.md) for the contents and
+scope of this archive.
+
+## 3. Rerun the experiments
+
+A full rerun creates new working results under `experiments/results`. The
+compact records in `records` are for inspection, not a resumable working tree.
+The fixed configurations and runner behavior are described in
+[reproduction scope](docs/reproduction_scope.md).
+
+### Synthetic studies
+
+Inspect the plan, then run the pilot and formal studies:
+
+```text
+python scripts/run_synthetic_experiments.py --phase formal --plan-only
+python scripts/run_synthetic_experiments.py --phase pilot --repetitions 10
+python scripts/run_synthetic_experiments.py --phase formal
+```
+
+The formal design has 1100 distinct paths, 4200 model fits, and three starts per
+fit. The constant-background controls reuse specified paths. Pilot results do
+not enter formal summaries. The recorded formal run took approximately
+10 hours 20 minutes on the study machine. See
+[synthetic design](docs/synthetic_experiments.md) for the seed scheme and outputs.
+
+### Neural analysis
+
+Download the required CRCNS recordings and place them below `data/raw` as
+described in [data access](docs/data_access.md). The raw recordings and extracted
+spike arrays are not distributed in this archive.
+
+```text
+python scripts/run_realdata_experiments.py --windows 5 --plan-only
+python scripts/run_realdata_experiments.py --windows 1
+python scripts/run_realdata_experiments.py --windows 5
+python scripts/run_realdata_experiments.py --windows 5 --continue-unconverged
+```
+
+Use `--raw-root PATH` on each execution command if the recordings are elsewhere.
+The first-window stage is reused by the five-window analysis. Continuation
+extends saved unqualified coordinate endpoints to at most 2000 cumulative
+sweeps and retains the training-based qualification rule. Inspect the final
+`summary.json`, including after continuation.
+
+The runner supports continuation at the five-window stage. If a newly run
+first-window fit is unqualified, the readiness check can block that stage;
+inspect its saved diagnostics before proceeding. See
+[neural design](docs/realdata_experiments.md).
+
+### Computational benchmark
+
+```text
+python experiments/syn07_scalability.py --plan-only
+python experiments/syn07_scalability.py
+```
+
+The benchmark has nine fixed tasks, three measured phases, and ten timing
+repetitions per phase. The 270 measurements are repeated timings, not 270
+independent simulated paths. See [benchmark design](docs/scalability.md).
+
+### Export a new run
+
+After all studies finish, export their working results to a separate folder:
+
+```text
+python scripts/export_paper_results.py --output-dir reproduced_paper
+python reproduced_paper/make_tables.py
+python reproduced_paper/make_figures.py
+```
+
+The exporter reads the result trees under `experiments/results`. Its
+`--synthetic`, `--realdata`, and `--timing` options also accept the corresponding
+study-generated ZIP files. The compact `records` tree is not an exporter input.
+The exporter does not fit models; it exports numerical inputs for the figures
+and tables, not revised manuscript prose or captions.
+
+Study runners also create `hypergraph_hawkes_results.zip` in Downloads and
+preserve an earlier ZIP under `Downloads/archive/hypergraph_hawkes`. Use
+`--download-dir PATH` for synthetic/neural runs or `--output-dir PATH` for the
+benchmark to change this location. Interrupted runs reuse saved working
+records. Inspect planned counts and qualification fields in `summary.json`;
+the top-level invocation status alone does not certify every fit.
+
+## Code and record map
+
+| Component | Location |
+| --- | --- |
+| Completion features and exposures | `models/features.py`, `models/kernel.py`, `models/likelihood.py` |
+| Constant and varying backgrounds | `models/baseline.py` |
+| Source allocation and coefficient updates | `inference/e_step.py`, `inference/m_step.py`, `inference/em.py` |
+| Coordinate maximization and KKT checks | `inference/coordinate.py` |
+| Event generation | `simulation/simulator.py` |
+| Synthetic study and seed rules | `experiments/synthetic_pipeline.py` |
+| Chronological neural prediction | `experiments/realdata_baseline.py` |
+| Timing study | `experiments/syn07_scalability.py` |
+| Figure/table inputs | `paper/data` |
+| Saved endpoint records and start summaries | `records`; [schema](docs/run_records.md) |
+
+Node labels in Python are zero-based; manuscript group labels are one-based.
+Ordinary coefficients use source-by-target orientation. Small implementation
+checks can be run with `python scripts/run_model_checks.py`; these are not a
+rerun of the full study.
+
+Completion-window membership uses the floating-point arithmetic of the
+reported runs. Exact-boundary sensitivity is documented in
+[reproduction scope](docs/reproduction_scope.md).
+`CITATION.cff` contains the article citation. `FILELIST.sha256` lists release
+files and their checksums.

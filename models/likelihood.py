@@ -1,219 +1,273 @@
 """
-Canonical log-likelihood evaluator for the HTH process.
+Canonical likelihood evaluators for the hyperedge-triggered Hawkes process.
 
-This is the single source of truth for the model log-likelihood. Before
-this module existed, the likelihood was hand-written inline inside a few
-experiment files (exp7, exp10, exp2), each with its own integral
-approximation. That made the numbers (a) inconsistent across experiments
-and (b) inconsistent with the M-step, whose closed-form updates assume a
-*closed-form* piecewise compensator while exp7 used a coarse 200-point
-Riemann grid.
+The full-window log-likelihood is
 
-The log-likelihood of a multivariate point process on [0, T] is
+    log L_[0,T] = sum_i log lambda_{n_i}(t_i)
+                  - integral_0^T sum_n lambda_n(t) dt.
 
-    log L = sum_i log lambda_{n_i}(t_i)  -  int_0^T sum_n lambda_n(t) dt.
+For sample-split and blocked predictive evaluation we also need the conditional
+likelihood on an interval (a, b] given the complete event history up to a:
 
-The integral (compensator) term decomposes exactly in closed form:
+    log L_(a,b] | H_a = sum_{i: a < t_i <= b} log lambda_{n_i}(t_i)
+                        - integral_a^b sum_n lambda_n(t) dt.
 
-  * baseline:   sum_n mu_n * T
-  * pairwise:   sum_j (sum_n alpha[node_j, n]) * (1/beta)(1 - e^{-beta (T - t_j)})
-  * hyperedge:  sum_e |e| * alpha_e * C_e
+The event stream passed to :func:`log_likelihood_interval` must contain the
+history required to evaluate intensities in the target interval. Events after
+``interval_end`` are harmless and ignored by the target score and compensator.
 
-where C_e is the *piecewise* compensator (each anchor active only until the
-next pattern completion), identical to the one used in the M-step. The
-hyperedge term carries the factor |e| because the most-recent anchor adds
-alpha_e * phi(.) to the intensity of every member node of e.
+The closed-form compensator decomposes into:
 
-Two integral methods are provided:
-  * "closed_form" (default): the exact decomposition above. Consistent with
-    the M-step, so EM is a genuine ascent on *this* objective.
-  * "grid": replicates the legacy 200-point Riemann approximation used in the
-    old inline exp7 code, for parity-checking the Phase-0 refactor only.
+* baseline exposure over the target duration;
+* pairwise kernel exposure from every source event before the interval end,
+  including residual excitation from events before the interval start;
+* most-recent-anchor hyperedge exposure, integrating each completion only until
+  the next completion and intersecting that activity interval with the target
+  interval.
+
+The same interval exposure helpers are reused by the M-step, keeping likelihood
+and EM updates mathematically aligned.
 """
 
+from __future__ import annotations
+
+from typing import Iterable, Sequence
+
 import numpy as np
-from models.kernel import ExponentialKernel, HyperedgeAnchor
 
 
-def _intensity_at(t, node, events_before, mu, alpha_pairwise, alpha_hyper,
-                  edge_list, kernel, anchor_calc, event_times_by_node):
-    """Intensity of a single `node` at time `t`, given history `events_before`.
+def _validate_interval(interval_start: float, interval_end: float) -> tuple[float, float]:
+    """Validate and return a finite, non-empty observation interval."""
+    a = float(interval_start)
+    b = float(interval_end)
+    if not np.isfinite(a) or not np.isfinite(b):
+        raise ValueError("interval bounds must be finite")
+    if b <= a:
+        raise ValueError(
+            f"interval_end must be greater than interval_start; got {a} >= {b}"
+        )
+    return a, b
 
-    Matches simulation.simulator._intensity and inference.e_step exactly:
-    background + pairwise (all prior events) + hyperedge (most-recent anchor).
+
+def event_target_mask(
+    times: np.ndarray,
+    interval_start: float,
+    interval_end: float,
+) -> np.ndarray:
+    """Return the event mask for the target interval.
+
+    The conditional interval convention is ``(start, end]``.  At the origin we
+    include time zero so that ``log_likelihood_interval(..., 0, T)`` is exactly
+    backward compatible with the canonical full-window likelihood, even for a
+    synthetic stream containing an event at zero.
     """
-    lam = mu[node]
-    for t_j, node_j in events_before:
-        if t_j >= t:
-            break
-        lam += alpha_pairwise[node_j, node] * float(kernel(np.array([t - t_j]))[0])
-    for e in edge_list:
-        if node not in e:
-            continue
-        a_e = alpha_hyper.get(e, 0.0)
-        if a_e == 0.0:
-            continue
-        anchors = anchor_calc.find_anchors(e, event_times_by_node, t)
-        if len(anchors) == 0:
-            continue
-        taus = np.array([t - t_a for t_a in anchors])
-        lam += a_e * float(kernel(taus).sum())
-    return lam
+    a, b = _validate_interval(interval_start, interval_end)
+    times = np.asarray(times, dtype=float)
+    left = times >= a if a == 0.0 else times > a
+    return left & (times <= b)
 
 
-def _all_completion_times(edge, event_times_by_node, delta):
-    """All times at which `edge` completes its pattern in [0, T].
+def event_times_by_node(events: Sequence[tuple[float, int]]) -> dict[int, np.ndarray]:
+    """Build sorted per-node event-time arrays from a time-sorted event stream."""
+    out: dict[int, list[float]] = {}
+    for t, node in events:
+        out.setdefault(int(node), []).append(float(t))
+    return {node: np.asarray(ts, dtype=float) for node, ts in out.items()}
 
-    Identical logic to m_step.update_alpha_hyper.all_completion_times, so the
-    compensator used by the likelihood and by the M-step are the same object.
+
+def all_completion_times(
+    edge: tuple[int, ...],
+    per_node_times: dict[int, np.ndarray],
+    delta: float,
+) -> np.ndarray:
+    """Return all most-recent-anchor pattern completion times for ``edge``.
+
+    A time ``t_last`` is a completion when the event at that time is from one
+    member of the edge and every other member has at least one event in
+    ``[t_last - delta, t_last]``.  Duplicate completion times are collapsed.
     """
-    completions = set()
+    completions: set[float] = set()
     for anchor_node in edge:
-        if anchor_node not in event_times_by_node:
+        anchor_times = per_node_times.get(anchor_node)
+        if anchor_times is None:
             continue
-        for t_last in event_times_by_node[anchor_node]:
-            window_start = t_last - delta
+        for t_last in anchor_times:
+            window_start = float(t_last) - float(delta)
             complete = True
-            for v in edge:
-                if v == anchor_node:
+            for member in edge:
+                if member == anchor_node:
                     continue
-                if v not in event_times_by_node:
+                member_times = per_node_times.get(member)
+                if member_times is None:
                     complete = False
                     break
-                in_window = [t for t in event_times_by_node[v]
-                             if window_start <= t <= t_last]
-                if len(in_window) == 0:
+                lo = np.searchsorted(member_times, window_start, side="left")
+                hi = np.searchsorted(member_times, t_last, side="right")
+                if hi <= lo:
                     complete = False
                     break
             if complete:
-                completions.add(t_last)
-    return sorted(completions)
+                completions.add(float(t_last))
+    return np.asarray(sorted(completions), dtype=float)
+
+
+
+# Backward-compatible private aliases used by the existing simulator-validity
+# diagnostic and archived scripts.  New code should use the public helpers.
+def _all_completion_times(edge, event_times_by_node, delta):
+    return list(all_completion_times(edge, event_times_by_node, delta))
 
 
 def _piecewise_compensator(completion_times, T, beta):
-    """C_e: each anchor active only until the next completion (or T)."""
-    if len(completion_times) == 0:
-        return 0.0
-    st = sorted(completion_times)
-    total = 0.0
-    for k in range(len(st)):
-        t_start = st[k]
-        t_end = st[k + 1] if k + 1 < len(st) else T
-        if t_end > t_start:
-            total += (1.0 / beta) * (1.0 - np.exp(-beta * (t_end - t_start)))
-    return total
+    return piecewise_compensator_interval(completion_times, 0.0, T, beta)
 
+def exponential_interval_integral(
+    anchor_time: float,
+    interval_start: float,
+    interval_end: float,
+    beta: float,
+) -> float:
+    """Integrate ``exp(-beta * (t-anchor_time))`` on an interval intersection.
 
-def log_likelihood(events, T, mu, alpha_pairwise, alpha_hyper, edge_list,
-                   kernel, anchor_calc, integral_method="closed_form",
-                   grid_points=200):
-    """Total log-likelihood of `events` under the given parameters.
-
-    Parameters
-    ----------
-    events          : list of (time, node), sorted by time
-    T               : float, observation window
-    mu              : (N,) baseline rates
-    alpha_pairwise  : (N, N) array, alpha_pairwise[j, i] = j -> i
-    alpha_hyper     : dict edge -> weight
-    edge_list       : list of candidate edges
-    kernel          : ExponentialKernel
-    anchor_calc     : HyperedgeAnchor
-    integral_method : "closed_form" (exact, M-step consistent) or
-                      "grid" (legacy 200-pt Riemann, parity check only)
-
-    Returns
-    -------
-    float : log L
+    The source is active only after ``anchor_time``.  Therefore the effective
+    lower bound is ``max(interval_start, anchor_time)``.
     """
-    mu = np.asarray(mu, dtype=float)
-    alpha_pairwise = np.asarray(alpha_pairwise, dtype=float)
-    n = len(events)
-    beta = kernel.beta
+    a, b = _validate_interval(interval_start, interval_end)
+    c = float(anchor_time)
+    if c >= b:
+        return 0.0
+    lo = max(a, c)
+    if b <= lo:
+        return 0.0
+    return float(
+        (np.exp(-beta * (lo - c)) - np.exp(-beta * (b - c))) / beta
+    )
 
-    event_times_by_node = {}
-    for t_j, node_j in events:
-        event_times_by_node.setdefault(node_j, []).append(t_j)
-    for k in event_times_by_node:
-        event_times_by_node[k] = np.asarray(event_times_by_node[k], dtype=float)
 
-    # --- sum of log-intensities at events (vectorised) ---
-    # Intensity at event i equals the same quantity the E-step computes
-    # (background + pairwise over strictly-earlier events + most-recent
-    # hyperedge anchor); broadcasting it here is numerically identical to the
-    # per-event loop but O(n^2) in NumPy rather than in Python.
-    if n == 0:
-        log_lam_sum = 0.0
-    else:
-        times = np.array([t for t, _ in events], dtype=float)
-        nodes = np.array([node for _, node in events], dtype=int)
+def pairwise_event_exposures(
+    source_times: np.ndarray,
+    interval_start: float,
+    interval_end: float,
+    beta: float,
+) -> np.ndarray:
+    """Kernel exposure of each source event over the target interval.
 
-        dt = times[:, None] - times[None, :]          # dt[i, j] = t_i - t_j
-        mask = dt > 0.0                                # strictly t_j < t_i
-        P = alpha_pairwise[np.ix_(nodes, nodes)]       # P[i, j] = alpha[n_i, n_j]
-        alpha_mat = P.T                                # [i, j] = alpha[n_j, n_i]
-        safe_dt = np.where(mask, dt, 0.0)
-        kern = np.where(mask, np.exp(-beta * safe_dt), 0.0)
-        pair_sum = (alpha_mat * kern).sum(axis=1)      # (n,)
+    Events before the interval start retain their exponentially decayed residual
+    contribution.  Events at or after the interval end have zero exposure.
+    """
+    a, b = _validate_interval(interval_start, interval_end)
+    times = np.asarray(source_times, dtype=float)
+    exposure = np.zeros(times.shape, dtype=float)
+    active = times < b
+    if not np.any(active):
+        return exposure
+    t = times[active]
+    lo = np.maximum(a, t)
+    exposure[active] = (
+        np.exp(-beta * (lo - t)) - np.exp(-beta * (b - t))
+    ) / beta
+    return exposure
 
-        lam = mu[nodes] + pair_sum                     # background + pairwise
-        for e in edge_list:
-            a_e = float(alpha_hyper.get(e, 0.0))
-            if a_e == 0.0:
-                continue
-            comps = _all_completion_times(e, event_times_by_node,
-                                          anchor_calc.delta)
-            if len(comps) == 0:
-                continue
-            comps = np.asarray(comps, dtype=float)
-            member = np.array([nodes[i] in e for i in range(n)], dtype=bool)
-            idx = np.searchsorted(comps, times, side="left") - 1
-            use = member & (idx >= 0)
-            if np.any(use):
-                tau = times[use] - comps[idx[use]]
-                lam[use] += a_e * np.exp(-beta * tau)
 
-        lam_arr = np.asarray(lam)
-        bad_lam = lam_arr <= 0
-        if np.any(bad_lam):
-            raise FloatingPointError(
-                f"Non-positive intensity encountered in E-step: "
-                f"min(lambda)={float(np.min(lam_arr)):.3e}, "
-                f"count={int(np.sum(bad_lam))}. "
-                "Check baseline rates, excitation weights, and kernel values."
-            )
-        pos = lam > 0
-        log_lam_sum = float(np.log(lam[pos]).sum())
+def piecewise_compensator_interval(
+    completion_times: Iterable[float],
+    interval_start: float,
+    interval_end: float,
+    beta: float,
+) -> float:
+    """Most-recent-anchor compensator restricted to a target interval.
 
-    # --- compensator (integral) term ---
+    Completion ``c_k`` is active only until ``c_{k+1}``.  This function
+    intersects each such activity interval with ``[interval_start,
+    interval_end]``.  Consequently a completion before the target interval can
+    contribute residual excitation inside it, while a completion inside the
+    interval supersedes the previous anchor.
+    """
+    a, b = _validate_interval(interval_start, interval_end)
+    completions = np.asarray(sorted(set(float(x) for x in completion_times)), dtype=float)
+    if completions.size == 0:
+        return 0.0
+
+    total = 0.0
+    for k, c in enumerate(completions):
+        if c >= b:
+            break
+        next_c = completions[k + 1] if k + 1 < completions.size else b
+        lo = max(a, float(c))
+        hi = min(b, float(next_c))
+        if hi <= lo:
+            continue
+        total += (
+            np.exp(-beta * (lo - c)) - np.exp(-beta * (hi - c))
+        ) / beta
+    return float(total)
+
+
+def log_likelihood_components(
+    events, interval_start, interval_end, mu, alpha_pairwise, alpha_hyper,
+    edge_list, kernel, anchor_calc, baseline_basis=None, include_start=None,
+):
+    """Exact conditional score, retaining its event and compensator parts."""
+    from models.baseline import as_baseline
+    from models.features import EventFeatures
+    baseline = as_baseline(mu, baseline_basis)
+    features = EventFeatures(events, baseline.n_nodes, edge_list, kernel.beta,
+                             anchor_calc.delta, interval_start, interval_end,
+                             baseline.basis, include_start)
+    return features.score(baseline.coefficients, alpha_pairwise, alpha_hyper)
+
+
+def log_likelihood_interval(
+    events, interval_start, interval_end, mu, alpha_pairwise, alpha_hyper,
+    edge_list, kernel, anchor_calc, integral_method="closed_form", grid_points=200,
+    baseline_basis=None, include_start=None,
+):
+    """Conditional score on (start,end]; legacy origin includes zero by default.
+
+    Pass include_start=False for the strictly right-closed revision protocol.
+    Time-varying baselines are TemporalBaseline instances or coefficient arrays
+    accompanied by baseline_basis. Parameters are never re-estimated here.
+    """
+    from models.baseline import as_baseline
+    from models.features import EventFeatures
+    a,b = _validate_interval(interval_start, interval_end)
+    baseline = as_baseline(mu, baseline_basis)
+    features = EventFeatures(events, baseline.n_nodes, edge_list, kernel.beta,
+                             anchor_calc.delta, a, b, baseline.basis, include_start)
+    parts = features.score(baseline.coefficients, alpha_pairwise, alpha_hyper)
     if integral_method == "closed_form":
-        beta = kernel.beta
-        total_int = float(mu.sum()) * T
-        for t_j, node_j in events:
-            row_sum = float(alpha_pairwise[node_j, :].sum())
-            total_int += row_sum * (1.0 / beta) * (1.0 - np.exp(-beta * (T - t_j)))
-        for e in edge_list:
-            a_e = alpha_hyper.get(e, 0.0)
-            if a_e == 0.0:
-                continue
-            comps = _all_completion_times(e, event_times_by_node, anchor_calc.delta)
-            C_e = _piecewise_compensator(comps, T, beta)
-            total_int += len(e) * a_e * C_e
-
-    elif integral_method == "grid":
-        grid = np.linspace(0, T, grid_points)
-        total_int = 0.0
-        N = len(mu)
-        for k in range(len(grid) - 1):
-            t_mid = 0.5 * (grid[k] + grid[k + 1])
-            hist = [(t, n) for t, n in events if t < t_mid]
-            lam_sum = 0.0
-            for node in range(N):
-                lam_sum += _intensity_at(t_mid, node, hist, mu, alpha_pairwise,
-                                         alpha_hyper, edge_list, kernel,
-                                         anchor_calc, event_times_by_node)
-            total_int += lam_sum * (grid[k + 1] - grid[k])
-    else:
+        return parts["loglik"]
+    if integral_method != "grid":
         raise ValueError(f"unknown integral_method: {integral_method!r}")
+    if grid_points < 2:
+        raise ValueError("grid_points must be at least 2")
+    # Independent midpoint reference retained for small validation problems.
+    per_node = event_times_by_node(events)
+    completions = {e: all_completion_times(e, per_node, anchor_calc.delta) for e in features.edges}
+    total = 0.0
+    grid = np.linspace(a, b, int(grid_points))
+    for left,right in zip(grid[:-1],grid[1:]):
+        t = (left+right)/2
+        value = float(baseline.values([t]).sum())
+        for source_t, source_node in events:
+            if source_t >= t:
+                break
+            value += float(np.asarray(alpha_pairwise)[source_node].sum())*np.exp(-kernel.beta*(t-source_t))
+        for e,c in completions.items():
+            idx = np.searchsorted(c,t,side="left")-1
+            if idx >= 0:
+                value += len(e)*alpha_hyper.get(e,0.0)*np.exp(-kernel.beta*(t-c[idx]))
+        total += value*(right-left)
+    return float(parts["event_log_intensity"]-total)
 
-    return log_lam_sum - total_int
+
+def log_likelihood(
+    events, T, mu, alpha_pairwise, alpha_hyper, edge_list, kernel, anchor_calc,
+    integral_method="closed_form", grid_points=200, baseline_basis=None,
+    include_start=None,
+):
+    """Backward-compatible full-window likelihood."""
+    return log_likelihood_interval(
+        events, 0.0, T, mu, alpha_pairwise, alpha_hyper, edge_list, kernel,
+        anchor_calc, integral_method, grid_points, baseline_basis, include_start,
+    )

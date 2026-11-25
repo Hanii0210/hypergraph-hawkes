@@ -1,0 +1,94 @@
+{
+  "design_version": "2026-10-06",
+  "master_seed": 20260929,
+  "beta": 2.0,
+  "delta": 0.05,
+  "top_m": [
+    1,
+    2,
+    3
+  ],
+  "primary_top_m": 3,
+  "backgrounds": [
+    "constant",
+    "linear"
+  ],
+  "pairwise_diagonal_estimated": true,
+  "datasets": [
+    {
+      "name": "real01_ret1_20080516_R1_rec0",
+      "loader": "ret1",
+      "file": "20080516_R1.mat",
+      "record_index": 0,
+      "n_nodes": 7,
+      "screen": [
+        0.0,
+        20.0
+      ],
+      "starts": [
+        20.0,
+        40.0,
+        60.0,
+        80.0,
+        100.0
+      ],
+      "duration": 20.0
+    },
+    {
+      "name": "real02_pvc3_area17",
+      "loader": "pvc3",
+      "n_nodes": 10,
+      "screen": [
+        0.0,
+        20.0
+      ],
+      "starts": [
+        20.0,
+        40.0,
+        60.0,
+        80.0,
+        100.0
+      ],
+      "duration": 20.0
+    },
+    {
+      "name": "real03_pvc11_monkey2",
+      "loader": "pvc11",
+      "monkey": 2,
+      "n_nodes": 10,
+      "screen": [
+        0.0,
+        40.0
+      ],
+      "starts": [
+        40.0,
+        80.0,
+        120.0,
+        160.0,
+        200.0
+      ],
+      "duration": 40.0
+    }
+  ],
+  "em": {
+    "n_initialisations": 3,
+    "max_iter": 1000,
+    "max_total_iter": 5000,
+    "min_iter": 10,
+    "convergence_tol": 1e-07,
+    "consecutive_convergence": 5,
+    "kkt_tol": 0.0001,
+    "ascent_tol": 1e-06,
+    "lambda_l1": 0.0
+  },
+  "refinement": {
+    "method": "coordinate_maximisation",
+    "max_sweeps": 200,
+    "apply_to_all_starts": true
+  },
+  "execution": {
+    "workers": 1,
+    "blas_threads": 1,
+    "start_timeout_seconds": 900
+  }
+}

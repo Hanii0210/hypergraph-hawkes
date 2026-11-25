@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "package_id": "2026-10-06-scalability",
+  "purpose": "Repeated timing of the revised free-weight implementation on the original Syn07 nine-setting grid",
+  "created_utc": "2026-10-06T11:07:26.886328+00:00",
+  "source_project": ".",
+  "requires_previous_package": "2026-10-06-realdata-convergence",
+  "scientific_experiments_run": false,
+  "benchmark": {
+    "settings": 9,
+    "phases": [
+      "features",
+      "iteration",
+      "fit"
+    ],
+    "repetitions_per_phase": 10,
+    "warmups_per_phase": 1,
+    "measured_runs": 270,
+    "full_fit_attempts": 90,
+    "excluded_full_fit_warmups": 9,
+    "same_path_and_initial_state_per_setting": true
+  },
+  "next_command": "experiments\\syn07_scalability.py",
+  "files": [
+    {
+      "path": "configs/syn07_scalability.json",
+      "action": "new"
+    },
+    {
+      "path": "tests/test_scalability.py",
+      "action": "new"
+    },
+    {
+      "path": "docs/scalability.md",
+      "action": "new"
+    },
+    {
+      "path": "experiments/syn07_scalability.py",
+      "action": "modify"
+    },
+    {
+      "path": "experiments/syn07_plot_scalability.py",
+      "action": "modify"
+    },
+    {
+      "path": "docs/realdata_experiments.md",
+      "action": "modify"
+    }
+  ]
+}

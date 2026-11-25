@@ -1,73 +1,74 @@
+"""Expectation step for full-window and conditional-interval HTH inference."""
+
+from __future__ import annotations
+
 import numpy as np
+
 from models.kernel import ExponentialKernel, HyperedgeAnchor
 
 
 class EStep:
-    """
-    Computes soft branch probabilities for each observed event.
+    """Compute soft branching responsibilities for observed events.
 
-    Vectorised implementation. Numerically identical to the original
-    triple-loop version, but the O(n^2) pairwise computation is done with
-    NumPy broadcasting and the per-event anchor search is replaced by a
-    one-off precomputation of each hyperedge's completion times plus a
-    binary search (searchsorted).
-
-    Correctness rests on one fact: whether a time t_last is a valid pattern
-    completion for edge e depends only on whether every member fired in
-    [t_last - delta, t_last]; those member events are at times <= t_last, so
-    the validity of t_last does not depend on the query time t_current (as
-    long as t_last < t_current). Hence the set of completions can be computed
-    once over the whole stream, and the anchor for event i is simply the
-    largest completion strictly before t_i -- exactly the max(...) the
-    original find_anchors returns.
-
-    For event i at time t_i on node n_i, the probability that it was
-    triggered by source s is:
-
-        p[i, s] = lambda[i, s] / sum_s' lambda[i, s']
-
-    Sources: background (mu), pairwise parent j, hyperedge e.
-
-    Parameters
-    ----------
-    kernel       : ExponentialKernel
-    anchor_calc  : HyperedgeAnchor
+    ``compute`` is backward compatible with the original full-window API.  When
+    ``target_start`` and ``target_end`` are supplied, the complete event stream
+    is still used as history, but responsibilities are returned only for target
+    events in ``(target_start, target_end]`` (with time zero included when the
+    start is zero).  Rows outside the target interval are exactly zero.
     """
 
     def __init__(self, kernel: ExponentialKernel, anchor_calc: HyperedgeAnchor):
         self.kernel = kernel
         self.anchor_calc = anchor_calc
 
-    def _completion_times(self, edge, event_times_by_node):
-        """All times at which `edge` completes its pattern, sorted ascending.
+    @staticmethod
+    def compute_sufficient(features, coefficients, alpha_pairwise, alpha_hyper):
+        """Aggregate latent parent responsibilities by source node.
 
-        Identical logic to HyperedgeAnchor.find_anchors' inner test and to
-        m_step / likelihood, so the anchor set is the same object everywhere.
+        The dense compute API remains available for existing CP code and
+        independent small-data comparisons. Free-weight EM uses this API.
         """
+        return features.statistics(coefficients, alpha_pairwise, alpha_hyper)
+
+    def _completion_times(self, edge, event_times_by_node):
+        """All completion times for an edge, sorted and deduplicated."""
         delta = self.anchor_calc.delta
         completions = set()
         for anchor_node in edge:
-            if anchor_node not in event_times_by_node:
+            member_anchor_times = event_times_by_node.get(anchor_node)
+            if member_anchor_times is None:
                 continue
-            for t_last in event_times_by_node[anchor_node]:
+            for t_last in member_anchor_times:
                 window_start = t_last - delta
                 complete = True
-                for v in edge:
-                    if v == anchor_node:
+                for member in edge:
+                    if member == anchor_node:
                         continue
-                    if v not in event_times_by_node:
+                    member_times = event_times_by_node.get(member)
+                    if member_times is None:
                         complete = False
                         break
-                    member_t = event_times_by_node[v]
-                    # any member event in [window_start, t_last] ?
-                    lo = np.searchsorted(member_t, window_start, side="left")
-                    hi = np.searchsorted(member_t, t_last, side="right")
-                    if hi - lo == 0:
+                    lo = np.searchsorted(member_times, window_start, side="left")
+                    hi = np.searchsorted(member_times, t_last, side="right")
+                    if hi <= lo:
                         complete = False
                         break
                 if complete:
-                    completions.add(t_last)
-        return np.array(sorted(completions), dtype=float)
+                    completions.add(float(t_last))
+        return np.asarray(sorted(completions), dtype=float)
+
+    @staticmethod
+    def _target_mask(times, target_start, target_end):
+        if target_start is None and target_end is None:
+            return np.ones(len(times), dtype=bool)
+        if target_start is None or target_end is None:
+            raise ValueError("target_start and target_end must be supplied together")
+        a = float(target_start)
+        b = float(target_end)
+        if not np.isfinite(a) or not np.isfinite(b) or b <= a:
+            raise ValueError("target interval must be finite and have positive length")
+        left = times >= a if a == 0.0 else times > a
+        return left & (times <= b)
 
     def compute(
         self,
@@ -76,94 +77,91 @@ class EStep:
         alpha_pairwise: np.ndarray,
         alpha_hyper: dict,
         edge_list: list,
+        target_start: float | None = None,
+        target_end: float | None = None,
     ) -> dict:
-        """
-        Run the E-step over all observed events.
+        """Run the E-step using the full stream as history.
 
-        Parameters / return values are identical to the original loop
-        implementation (see git history): returns a dict with keys
-        'p_background' (n,), 'p_pairwise' (n, n), 'p_hyper' (edge -> (n,)).
+        Returns
+        -------
+        dict
+            ``p_background`` with shape ``(n,)``, ``p_pairwise`` with shape
+            ``(n,n)``, ``p_hyper`` mapping each edge to shape ``(n,)``, and
+            ``target_mask``.  Responsibility rows outside the target interval
+            are zero.
         """
         n = len(events)
         beta = self.kernel.beta
 
         p_background = np.zeros(n)
         p_pairwise = np.zeros((n, n))
-        p_hyper = {e: np.zeros(n) for e in edge_list}
+        p_hyper = {edge: np.zeros(n) for edge in edge_list}
 
         if n == 0:
-            return {"p_background": p_background,
-                    "p_pairwise": p_pairwise,
-                    "p_hyper": p_hyper}
+            return {
+                "p_background": p_background,
+                "p_pairwise": p_pairwise,
+                "p_hyper": p_hyper,
+                "target_mask": np.zeros(0, dtype=bool),
+            }
 
-        times = np.array([t for t, _ in events], dtype=float)
-        nodes = np.array([node for _, node in events], dtype=int)
+        times = np.asarray([t for t, _ in events], dtype=float)
+        nodes = np.asarray([node for _, node in events], dtype=int)
+        target_mask = self._target_mask(times, target_start, target_end)
 
-        # node -> sorted array of its event times (events are time-sorted, so
-        # each per-node list is already ascending)
         event_times_by_node = {}
         for t, node in events:
             event_times_by_node.setdefault(node, []).append(t)
-        for k in event_times_by_node:
-            event_times_by_node[k] = np.asarray(event_times_by_node[k], dtype=float)
+        for node in event_times_by_node:
+            event_times_by_node[node] = np.asarray(
+                event_times_by_node[node], dtype=float
+            )
 
-        # ---------------- pairwise contribution matrix ----------------
-        # contrib_pair[i, j] = alpha_pairwise[node_j, node_i] * exp(-beta dt)
-        #                      for t_j < t_i, else 0.
-        dt = times[:, None] - times[None, :]          # dt[i, j] = t_i - t_j
-        mask = dt > 0.0                                # strictly t_j < t_i
-        # alpha_pairwise[node_j, node_i] as [i, j]: build P[a,b]=alpha[nodes[a],nodes[b]]
-        P = alpha_pairwise[np.ix_(nodes, nodes)]       # P[i, j] = alpha[node_i, node_j]
-        alpha_mat = P.T                                # [i, j] = alpha[node_j, node_i]
-        # guard exp against negative tau (upper triangle) before masking
-        safe_dt = np.where(mask, dt, 0.0)
-        kern = np.where(mask, np.exp(-beta * safe_dt), 0.0)
-        contrib_pair = alpha_mat * kern                # (n, n)
+        # Pairwise contribution matrix: target event i, potential parent j.
+        dt = times[:, None] - times[None, :]
+        prior = dt > 0.0
+        pair_weights = alpha_pairwise[np.ix_(nodes, nodes)].T
+        safe_dt = np.where(prior, dt, 0.0)
+        pair_kernel = np.where(prior, np.exp(-beta * safe_dt), 0.0)
+        pair_contribution = pair_weights * pair_kernel
 
-        # ---------------- hyperedge contribution ----------------
-        # contrib_hyper_col[e] : (n,) contribution of edge e to each event
-        contrib_hyper = {}
-        for e in edge_list:
+        # Hyperedge contribution for the most recent completion strictly before
+        # each event.
+        hyper_contribution = {}
+        for edge in edge_list:
             col = np.zeros(n)
-            a_e = float(alpha_hyper.get(e, 0.0))
-            comps = self._completion_times(e, event_times_by_node)
-            if a_e != 0.0 and comps.size > 0:
-                member = np.array([1 if nodes[i] in e else 0 for i in range(n)],
-                                  dtype=bool)
-                # most-recent completion strictly before t_i
-                idx = np.searchsorted(comps, times, side="left") - 1
-                has_anchor = idx >= 0
-                use = member & has_anchor
+            weight = float(alpha_hyper.get(edge, 0.0))
+            completions = self._completion_times(edge, event_times_by_node)
+            if weight != 0.0 and completions.size:
+                member = np.fromiter(
+                    (node in edge for node in nodes), dtype=bool, count=n
+                )
+                idx = np.searchsorted(completions, times, side="left") - 1
+                use = member & (idx >= 0)
                 if np.any(use):
-                    anchor_t = np.empty(n)
-                    anchor_t[use] = comps[idx[use]]
-                    tau = times[use] - anchor_t[use]
-                    col[use] = a_e * np.exp(-beta * tau)
-            contrib_hyper[e] = col
+                    tau = times[use] - completions[idx[use]]
+                    col[use] = weight * np.exp(-beta * tau)
+            hyper_contribution[edge] = col
 
-        # ---------------- totals and normalisation ----------------
-        bg = mu[nodes]                                  # (n,)
-        pair_sum = contrib_pair.sum(axis=1)             # (n,)
-        hyper_sum = np.zeros(n)
-        for e in edge_list:
-            hyper_sum += contrib_hyper[e]
-        total = bg + pair_sum + hyper_sum               # (n,)
+        background = mu[nodes]
+        total = background + pair_contribution.sum(axis=1)
+        for edge in edge_list:
+            total += hyper_contribution[edge]
 
-        pos = total > 0.0
-        # events with total <= 0: p_background = 1, all else 0 (original behaviour)
-        p_background[~pos] = 1.0
+        positive_target = target_mask & (total > 0.0)
+        nonpositive_target = target_mask & ~positive_target
+        p_background[nonpositive_target] = 1.0
 
         inv = np.zeros(n)
-        inv[pos] = 1.0 / total[pos]
-
-        p_background[pos] = bg[pos] * inv[pos]
-        p_pairwise = contrib_pair * inv[:, None]        # rows with total<=0 are 0
-        # zero out any pairwise row where total<=0 (inv=0 already does this)
-        for e in edge_list:
-            p_hyper[e] = contrib_hyper[e] * inv
+        inv[positive_target] = 1.0 / total[positive_target]
+        p_background[positive_target] = background[positive_target] * inv[positive_target]
+        p_pairwise = pair_contribution * inv[:, None]
+        for edge in edge_list:
+            p_hyper[edge] = hyper_contribution[edge] * inv
 
         return {
             "p_background": p_background,
-            "p_pairwise":   p_pairwise,
-            "p_hyper":      p_hyper,
+            "p_pairwise": p_pairwise,
+            "p_hyper": p_hyper,
+            "target_mask": target_mask,
         }

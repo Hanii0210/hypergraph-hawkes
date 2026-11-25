@@ -1,0 +1,591 @@
+{
+  "model": "V-M2",
+  "dataset_id": "syn14_time_varying_baseline/formal/sinusoidal_a0.6_null/rep_080",
+  "status": "qualified",
+  "selected_start": 1,
+  "selection_basis": "maximum qualified training objective only",
+  "n_qualified_starts": 3,
+  "n_near_optimal_starts": 3,
+  "near_optimal_max_parameter_range": 5.352604225697388e-06,
+  "start_records": [
+    "start_1.json",
+    "start_2.json",
+    "start_3.json"
+  ],
+  "start_statuses": [
+    "qualified",
+    "qualified",
+    "qualified"
+  ],
+  "total_start_wall_seconds": 6.8955627999821445,
+  "max_worker_peak_bytes": 38940672,
+  "n_parameters": 63,
+  "penalty": 0.0,
+  "package_version": "2026-09-30-synthetic-formal",
+  "optimizer": "em_then_coordinate_maximisation",
+  "parameters": {
+    "baseline_basis": {
+      "kind": "sinusoidal",
+      "origin": 0,
+      "end": null,
+      "period": 50.0
+    },
+    "baseline_coefficients": [
+      [
+        0.2896606048488947,
+        0.09202600303544922
+      ],
+      [
+        0.31606174987971625,
+        0.10749621420988945
+      ],
+      [
+        0.35071932759312874,
+        0.11330077013371216
+      ],
+      [
+        0.2652399358723425,
+        0.08598060702865823
+      ],
+      [
+        0.3626089844728564,
+        0.05753524756103985
+      ],
+      [
+        0.3264468430388744,
+        0.07717392620497243
+      ]
+    ],
+    "alpha_pairwise": [
+      [
+        0.0,
+        0.22129751376376927,
+        0.0482959402985936,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.05691362456643957,
+        0.0,
+        0.05231177453962824,
+        0.021414017220976432,
+        0.0,
+        0.0
+      ],
+      [
+        0.03432595667936415,
+        0.014309029522111683,
+        0.0,
+        0.19286245178106165,
+        0.0006443649971160513,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.14061632443464167,
+        0.0,
+        0.14951265426288524,
+        0.02226911256345666
+      ],
+      [
+        0.04524073782545976,
+        0.0,
+        0.06942403386941948,
+        0.0698355480099159,
+        0.0,
+        0.14750843773018474
+      ],
+      [
+        0.2189479960639874,
+        0.0,
+        0.0,
+        0.0,
+        0.12421198523159586,
+        0.0
+      ]
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        0,
+        3
+      ],
+      [
+        0,
+        4
+      ],
+      [
+        0,
+        5
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        1,
+        5
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        2,
+        4
+      ],
+      [
+        2,
+        5
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        3,
+        5
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        2,
+        3,
+        4
+      ],
+      [
+        0,
+        1,
+        3
+      ],
+      [
+        0,
+        2,
+        3
+      ],
+      [
+        1,
+        2,
+        4
+      ],
+      [
+        2,
+        4,
+        5
+      ]
+    ],
+    "alpha_hyper": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.005073733002580426,
+      0.0,
+      0.0,
+      0.0,
+      0.15648924744355283,
+      0.06576854780377858,
+      0.0,
+      0.052564263423602944,
+      0.0,
+      0.0,
+      0.13899535228626475,
+      0.0,
+      0.0,
+      0.020342137922306137,
+      0.11771661039192297,
+      0.021856681488529404
+    ]
+  },
+  "training_score": {
+    "event_log_intensity": -835.2248964789393,
+    "baseline_integral": 1645.9395512246595,
+    "pairwise_integral": 684.873587121821,
+    "hyperedge_integral": 218.183415952425,
+    "integral": 2548.9965542989057,
+    "loglik": -3384.221450777845,
+    "n_events": 2549,
+    "duration": 666.6666666666666
+  },
+  "kkt_residual": 1.9883151958608266e-05,
+  "stability": {
+    "rho_pairwise": 0.2693085744312117,
+    "pairwise_subcritical": true,
+    "maximum_source_row_sum": 0.3431599812955833,
+    "maximum_target_column_sum": 0.35542831513525086,
+    "hyperedge_upper_per_node": [
+      0.15933749020857088,
+      0.26178569568076815,
+      0.5262423103389351,
+      0.22939564878946192,
+      0.2579061031078339,
+      0.021856681488529404
+    ],
+    "stationary_existence_sufficient": false,
+    "stationary_mean_upper": null,
+    "baseline_kind": "sinusoidal",
+    "interpretation": "sufficient condition only; no claim of stationary uniqueness"
+  },
+  "test_score": {
+    "event_log_intensity": -449.7646734258043,
+    "baseline_integral": 798.3106626548752,
+    "pairwise_integral": 301.4377837710598,
+    "hyperedge_integral": 92.64706789112323,
+    "integral": 1192.3955143170583,
+    "loglik": -1642.1601877428625,
+    "n_events": 1130,
+    "duration": 333.33333333333337,
+    "per_time": -4.926480563228587,
+    "per_event": -1.4532391041972235,
+    "per_event_missing_reason": null
+  },
+  "scoring_seconds": 0.09670670000195969,
+  "parameter_errors": {
+    "hyperedges": [
+      {
+        "edge": [
+          0,
+          1
+        ],
+        "estimate": 0.0,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": -0.1
+      },
+      {
+        "edge": [
+          0,
+          2
+        ],
+        "estimate": 0.0,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": -0.1
+      },
+      {
+        "edge": [
+          0,
+          3
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          0,
+          4
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          0,
+          5
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          1,
+          2
+        ],
+        "estimate": 0.005073733002580426,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": -0.09492626699741957
+      },
+      {
+        "edge": [
+          1,
+          3
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          1,
+          4
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          1,
+          5
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          2,
+          3
+        ],
+        "estimate": 0.15648924744355283,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": 0.056489247443552826
+      },
+      {
+        "edge": [
+          2,
+          4
+        ],
+        "estimate": 0.06576854780377858,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": -0.034231452196221424
+      },
+      {
+        "edge": [
+          2,
+          5
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          3,
+          4
+        ],
+        "estimate": 0.052564263423602944,
+        "truth": 0.1,
+        "identifiable": true,
+        "error": -0.04743573657639706
+      },
+      {
+        "edge": [
+          3,
+          5
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          4,
+          5
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          0,
+          1,
+          2
+        ],
+        "estimate": 0.13899535228626475,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.13899535228626475
+      },
+      {
+        "edge": [
+          2,
+          3,
+          4
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          0,
+          1,
+          3
+        ],
+        "estimate": 0.0,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.0
+      },
+      {
+        "edge": [
+          0,
+          2,
+          3
+        ],
+        "estimate": 0.020342137922306137,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.020342137922306137
+      },
+      {
+        "edge": [
+          1,
+          2,
+          4
+        ],
+        "estimate": 0.11771661039192297,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.11771661039192297
+      },
+      {
+        "edge": [
+          2,
+          4,
+          5
+        ],
+        "estimate": 0.021856681488529404,
+        "truth": 0.0,
+        "identifiable": true,
+        "error": 0.021856681488529404
+      }
+    ],
+    "pairwise_eligible_count": 30,
+    "pairwise_error_matrix": [
+      [
+        null,
+        0.02129751376376926,
+        -0.001704059701406406,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.006913624566439569,
+        null,
+        -0.14768822546037177,
+        0.021414017220976432,
+        0.0,
+        0.0
+      ],
+      [
+        -0.01567404332063585,
+        -0.03569097047788832,
+        null,
+        -0.007137548218938361,
+        -0.04935563500288395,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.09061632443464167,
+        null,
+        -0.050487345737114775,
+        0.02226911256345666
+      ],
+      [
+        0.04524073782545976,
+        0.0,
+        0.019424033869419474,
+        0.019835548009915896,
+        null,
+        -0.002491562269815256
+      ],
+      [
+        0.06894799606398741,
+        0.0,
+        0.0,
+        0.0,
+        0.12421198523159586,
+        null
+      ]
+    ],
+    "pairwise_mse": 0.002034780798038033,
+    "triple_sum_weight": 0.2989107820890233,
+    "triple_max_weight": 0.13899535228626475
+  },
+  "baseline_errors": {
+    "training": {
+      "grid_points": 1001,
+      "mse_per_node": [
+        0.0012651884033420093,
+        0.0010250852985721622,
+        0.004096007390507369,
+        0.004339701345982794,
+        0.002580918045852451,
+        5.752678007360951e-05
+      ],
+      "mse_mean": 0.0022274045440550663,
+      "refined_grid_points": 2001,
+      "refined_mse_per_node": [
+        0.001265208735616117,
+        0.0010250781478980118,
+        0.004096004824398567,
+        0.004339764633367763,
+        0.002580957852797146,
+        5.752769768310778e-05
+      ],
+      "max_refinement_change": 6.328738496892e-08,
+      "grid_stable": true
+    },
+    "test": {
+      "grid_points": 1001,
+      "mse_per_node": [
+        0.001167963966371075,
+        0.0010969650419328176,
+        0.004113704858451126,
+        0.003992920736663378,
+        0.002407341400614487,
+        5.3254994298035726e-05
+      ],
+      "mse_mean": 0.002138691833055153,
+      "refined_grid_points": 2001,
+      "refined_mse_per_node": [
+        0.0011679538026889695,
+        0.0010969686176155204,
+        0.004113706141369778,
+        0.003992889099195806,
+        0.002407321502486534,
+        5.325453560780217e-05
+      ],
+      "max_refinement_change": 3.1637467571947464e-08,
+      "grid_stable": true
+    }
+  },
+  "diagnostic_seconds": 0.000524200004292652
+}

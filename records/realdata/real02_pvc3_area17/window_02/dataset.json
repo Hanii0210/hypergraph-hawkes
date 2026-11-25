@@ -1,0 +1,333 @@
+{
+  "task": {
+    "config": {
+      "design_version": "2026-10-06",
+      "master_seed": 20260929,
+      "beta": 2.0,
+      "delta": 0.05,
+      "top_m": [
+        1,
+        2,
+        3
+      ],
+      "primary_top_m": 3,
+      "backgrounds": [
+        "constant",
+        "linear"
+      ],
+      "pairwise_diagonal_estimated": true,
+      "datasets": [
+        {
+          "name": "real01_ret1_20080516_R1_rec0",
+          "loader": "ret1",
+          "file": "20080516_R1.mat",
+          "record_index": 0,
+          "n_nodes": 7,
+          "screen": [
+            0.0,
+            20.0
+          ],
+          "starts": [
+            20.0,
+            40.0,
+            60.0,
+            80.0,
+            100.0
+          ],
+          "duration": 20.0
+        },
+        {
+          "name": "real02_pvc3_area17",
+          "loader": "pvc3",
+          "n_nodes": 10,
+          "screen": [
+            0.0,
+            20.0
+          ],
+          "starts": [
+            20.0,
+            40.0,
+            60.0,
+            80.0,
+            100.0
+          ],
+          "duration": 20.0
+        },
+        {
+          "name": "real03_pvc11_monkey2",
+          "loader": "pvc11",
+          "monkey": 2,
+          "n_nodes": 10,
+          "screen": [
+            0.0,
+            40.0
+          ],
+          "starts": [
+            40.0,
+            80.0,
+            120.0,
+            160.0,
+            200.0
+          ],
+          "duration": 40.0
+        }
+      ],
+      "em": {
+        "n_initialisations": 3,
+        "max_iter": 1000,
+        "max_total_iter": 5000,
+        "min_iter": 10,
+        "convergence_tol": 1e-07,
+        "consecutive_convergence": 5,
+        "kkt_tol": 0.0001,
+        "ascent_tol": 1e-06,
+        "lambda_l1": 0.0
+      },
+      "refinement": {
+        "method": "coordinate_maximisation",
+        "max_sweeps": 200,
+        "apply_to_all_starts": true
+      },
+      "execution": {
+        "workers": 1,
+        "blas_threads": 1,
+        "start_timeout_seconds": 900
+      }
+    },
+    "dataset": {
+      "name": "real02_pvc3_area17",
+      "loader": "pvc3",
+      "n_nodes": 10,
+      "screen": [
+        0.0,
+        20.0
+      ],
+      "starts": [
+        20.0,
+        40.0,
+        60.0,
+        80.0,
+        100.0
+      ],
+      "duration": 20.0
+    },
+    "dataset_id": "real02_pvc3_area17",
+    "window_index": 2,
+    "start": 40.0,
+    "end": 60.0,
+    "path": "real02_pvc3_area17/window_02",
+    "intervals": {
+      "selection": [
+        40.0,
+        46.666666666666664
+      ],
+      "estimation": [
+        46.666666666666664,
+        53.333333333333336
+      ],
+      "test": [
+        53.333333333333336,
+        60.0
+      ]
+    },
+    "start_seeds": {
+      "screening": [
+        14114521847657826304,
+        7090701750734306262,
+        2291672812812036525
+      ],
+      "C-P": [
+        8720221810674005992,
+        1910400676892190751,
+        8955996466669040359
+      ],
+      "C-H2-top1": [
+        4385004976570622744,
+        9451055190647341548,
+        2946330372845048973
+      ],
+      "C-H2-top2": [
+        11928731576420035903,
+        6650194915316868451,
+        14540725965100501415
+      ],
+      "C-H2-top3": [
+        18138454740648964308,
+        2122579673074100396,
+        3915889675971291403
+      ],
+      "V-P": [
+        15682100609753753441,
+        11338713060220400248,
+        3213078204288642509
+      ],
+      "V-H2-top1": [
+        18174240739411070816,
+        3486882793972174039,
+        10040028502370349550
+      ],
+      "V-H2-top2": [
+        1278845905070354803,
+        8474967994319537758,
+        13812515353971635267
+      ],
+      "V-H2-top3": [
+        3270312682642150143,
+        15782436829901839017,
+        15299423767029722394
+      ]
+    }
+  },
+  "status": "prepared",
+  "mapping": [
+    {
+      "new_node": 0,
+      "original_file": "t03.spk",
+      "source_index": 3,
+      "count_in_screening_span": 447,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 1,
+      "original_file": "t20.spk",
+      "source_index": 18,
+      "count_in_screening_span": 422,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 2,
+      "original_file": "t23.spk",
+      "source_index": 20,
+      "count_in_screening_span": 321,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 3,
+      "original_file": "t01.spk",
+      "source_index": 1,
+      "count_in_screening_span": 269,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 4,
+      "original_file": "t14.spk",
+      "source_index": 12,
+      "count_in_screening_span": 263,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 5,
+      "original_file": "t05.spk",
+      "source_index": 5,
+      "count_in_screening_span": 253,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 6,
+      "original_file": "t16.spk",
+      "source_index": 14,
+      "count_in_screening_span": 237,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 7,
+      "original_file": "t02.spk",
+      "source_index": 2,
+      "count_in_screening_span": 223,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 8,
+      "original_file": "t27.spk",
+      "source_index": 24,
+      "count_in_screening_span": 218,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    },
+    {
+      "new_node": 9,
+      "original_file": "t13.spk",
+      "source_index": 11,
+      "count_in_screening_span": 187,
+      "screening_span_start": 0.0,
+      "screening_span_end": 20.0
+    }
+  ],
+  "all_available_history_preserved": true,
+  "absolute_times": true,
+  "n_history_events_before_window": 6056,
+  "intervals": {
+    "selection": {
+      "start": 40.0,
+      "end": 46.666666666666664,
+      "boundary_convention": "(start, end]",
+      "n_events": 1027,
+      "node_counts": [
+        177,
+        136,
+        109,
+        81,
+        75,
+        112,
+        91,
+        61,
+        86,
+        99
+      ],
+      "n_tied_times": 5,
+      "n_records_at_tied_times": 10,
+      "same_node_same_time_extra_records": 0
+    },
+    "estimation": {
+      "start": 46.666666666666664,
+      "end": 53.333333333333336,
+      "boundary_convention": "(start, end]",
+      "n_events": 946,
+      "node_counts": [
+        153,
+        140,
+        101,
+        75,
+        65,
+        101,
+        96,
+        60,
+        72,
+        83
+      ],
+      "n_tied_times": 1,
+      "n_records_at_tied_times": 2,
+      "same_node_same_time_extra_records": 0
+    },
+    "test": {
+      "start": 53.333333333333336,
+      "end": 60.0,
+      "boundary_convention": "(start, end]",
+      "n_events": 1097,
+      "node_counts": [
+        192,
+        152,
+        103,
+        108,
+        108,
+        100,
+        74,
+        118,
+        72,
+        70
+      ],
+      "n_tied_times": 1,
+      "n_records_at_tied_times": 2,
+      "same_node_same_time_extra_records": 0
+    }
+  },
+  "package_version": "2026-10-06-realdata-experiments"
+}

@@ -1,0 +1,212 @@
+{
+  "release": "HTH_JSCS_v2-reproduction-20261112",
+  "date": "2026-11-12",
+  "status": "passed",
+  "inspection": {
+    "python_files_syntax_checked": 46,
+    "json_files_parsed": 6808,
+    "jsonl_row_counts": {
+      "records/derived/realdata_archived_starts.jsonl": 9,
+      "records/derived/realdata_starts.jsonl": 405,
+      "records/derived/synthetic_starts.jsonl": 12600,
+      "records/provenance.jsonl": 6793
+    },
+    "forbidden_large_or_runtime_files_found": [],
+    "explicit_conversational_markers_found": [],
+    "private_absolute_paths_in_documentation_or_records_found": [],
+    "local_markdown_links_checked": 14,
+    "style_review_scope": "Explicit assistant/chat markers, instructions to return files, private machine paths and documentation claims; this is not an inference about authorship."
+  },
+  "lightweight_validation": {
+    "environment": {
+      "python": "3.12.14",
+      "platform": "Linux",
+      "numpy": "2.3.5",
+      "scipy": "1.17.0",
+      "matplotlib": "3.10.8"
+    },
+    "implementation_check_modules": [
+      "test_temporal_baseline.py",
+      "test_history_features.py",
+      "test_em_free.py",
+      "test_coordinate.py",
+      "test_synthetic_pipeline.py",
+      "test_realdata_experiments.py",
+      "test_scalability.py",
+      "tests/test_em_interval.py",
+      "tests/test_likelihood_interval.py",
+      "tests/test_estep.py",
+      "tests/test_mstep.py",
+      "tests/test_kernel.py",
+      "tests/test_tensor.py",
+      "test_simulator_status.py"
+    ],
+    "all_14_implementation_check_modules_passed": true,
+    "table_files_generated": [
+      "neural_candidates.tex",
+      "neural_mapping.tex",
+      "neural_scores.tex",
+      "neural_sensitivity.tex",
+      "synthetic_nuisance.tex",
+      "synthetic_prediction.tex",
+      "synthetic_recovery.tex",
+      "timing.tex",
+      "timing_slopes.tex"
+    ],
+    "figure_png_files_generated": [
+      "candidate_sensitivity.png",
+      "decoy_weights.png",
+      "hth_combo_data.png",
+      "overlapping_hyperedges.png",
+      "real04_summary_panel.png",
+      "syn07_scalability.png",
+      "time_varying_background.png"
+    ],
+    "plotting_font_note": "Times New Roman was unavailable in this validation environment; Matplotlib used a fallback. Plotting code and numerical inputs were not changed.",
+    "paper_data_comparison_in_disposable_reproduction_copy": [
+      {
+        "path": "paper/data/figure_summary.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/neural_candidates.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/neural_mapping.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/neural_scores.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/neural_sensitivity.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/realdata_analysis.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/realdata_diagnostics.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/realdata_fits.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/synthetic_diagnostics.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/synthetic_nuisance.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/synthetic_prediction.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/synthetic_recovery.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/synthetic_replicates.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/timing.csv",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/timing_analysis.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/timing_diagnostics.json",
+        "byte_identical_after_reproduction": true
+      },
+      {
+        "path": "paper/data/timing_slopes.csv",
+        "byte_identical_after_reproduction": false
+      },
+      {
+        "path": "paper/data/timing_summary.json",
+        "byte_identical_after_reproduction": true
+      }
+    ],
+    "reproduction_copy_note": "Only timing_slopes.csv changed in the disposable copy: reaggregated log-log regression quantities differed in their final floating-point digits across numerical-library environments. The release retains all 18 original paper/data files byte-for-byte.",
+    "formal_plan_counts": {
+      "synthetic_datasets": 1100,
+      "synthetic_fits": 4200,
+      "synthetic_starts": 12600,
+      "realdata_windows": 15,
+      "realdata_fits": 135,
+      "realdata_starts": 405
+    },
+    "full_study_simulations_or_refits_performed_during_release_validation": false
+  },
+  "saved_record_verification": {
+    "schema_version": 1,
+    "status": "passed",
+    "scope": "Consistency of packaged original records, derived endpoint summaries, and paper inputs; no simulation, fitting, or event-level likelihood/gradient recomputation.",
+    "checks": 313661,
+    "failure_count": 0,
+    "failures": [],
+    "failure_details_truncated": false,
+    "sections": {
+      "provenance": {
+        "passed": true,
+        "manifest_files_checked": 6797,
+        "original_record_provenance_rows": 6793,
+        "omitted_start_bytes_verified": false
+      },
+      "synthetic": {
+        "passed": true,
+        "datasets": 1100,
+        "fits": 4200,
+        "start_summaries": 12600,
+        "paper_rows_direct_fields_exact": 4200,
+        "maximum_reaggregated_parameter_statistic_difference": 0.0
+      },
+      "realdata": {
+        "passed": true,
+        "windows": 15,
+        "selected_models": 135,
+        "current_start_summaries": 405,
+        "archived_start_summaries": 9
+      },
+      "benchmark": {
+        "passed": true,
+        "settings": 9,
+        "measurements": 270,
+        "excluded_warmups": 27,
+        "qualified_fits": 90,
+        "raw_em_converged": 80,
+        "maximum_reaggregated_slope_difference": 2.0539125955565396e-15
+      }
+    }
+  },
+  "independent_source_copy_validation": {
+    "status": "passed",
+    "original_record_copies_compared_to_source_members": 6793,
+    "byte_identical_original_records": 6785,
+    "metadata_path_only_sanitized_records": 8,
+    "sanitized_string_fields": 37,
+    "other_record_content_changes": 0,
+    "derived_summary_counts": {
+      "realdata_archived_starts.jsonl": 9,
+      "realdata_starts.jsonl": 405,
+      "synthetic_starts.jsonl": 12600
+    },
+    "independent_original_start_record_sample_checks": 79,
+    "sampling_seed": 20261112
+  },
+  "verifier_test_suite": {
+    "tests_passed": 11,
+    "tests_failed": 0,
+    "scope": "Intact package, missing/corrupt records, incorrect counts, corrupted paper input, output protection, empty root and complete checksums, using a disposable copy."
+  }
+}

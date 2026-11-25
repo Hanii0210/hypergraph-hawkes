@@ -1,0 +1,64 @@
+{
+  "task": {
+    "sweep": "event_count",
+    "n_nodes": 4,
+    "T": 800,
+    "path": "event_count/T_800"
+  },
+  "config": {
+    "experiment": "syn07_scalability",
+    "schema_version": 1,
+    "event_count_sweep": {
+      "n_nodes": 4,
+      "durations": [
+        100,
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "node_count_sweep": {
+      "n_nodes": [
+        3,
+        5,
+        8,
+        12
+      ],
+      "duration": 200
+    },
+    "beta": 1.0,
+    "delta": 0.5,
+    "baseline_rate": 0.3,
+    "pairwise_source": 2,
+    "pairwise_target": 0,
+    "pairwise_weight": 0.3,
+    "hyperedge": [
+      0,
+      1
+    ],
+    "hyperedge_weight": 0.4,
+    "simulation_seed": 42,
+    "initialization_seed": 2026,
+    "max_events": 20000,
+    "repetitions": 10,
+    "warmup_repetitions": 1,
+    "phase_timeout_seconds": 900,
+    "lambda_l1": 0.001,
+    "hyper_update": "free",
+    "pairwise_diagonal_estimated": false,
+    "em": {
+      "max_iter": 1000,
+      "max_total_iter": 5000,
+      "min_iter": 10,
+      "convergence_tol": 1e-07,
+      "consecutive_convergence": 5,
+      "kkt_tol": 0.0001,
+      "ascent_tol": 1e-06
+    },
+    "refinement_max_sweeps": 2000,
+    "measurement_scope": "One fixed generated path and one fixed positive initial state per scale. Ten hardware timing repeats, not independent simulation replicates. Warmups excluded.",
+    "comparison_scope": "Revised free-weight implementation. Old CP/ALS timings are provenance only; no direct speedup ratio."
+  },
+  "phase": "fit"
+}

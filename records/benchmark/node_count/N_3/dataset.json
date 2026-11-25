@@ -1,0 +1,122 @@
+{
+  "task": {
+    "sweep": "node_count",
+    "n_nodes": 3,
+    "T": 200,
+    "path": "node_count/N_3"
+  },
+  "config": {
+    "experiment": "syn07_scalability",
+    "schema_version": 1,
+    "event_count_sweep": {
+      "n_nodes": 4,
+      "durations": [
+        100,
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "node_count_sweep": {
+      "n_nodes": [
+        3,
+        5,
+        8,
+        12
+      ],
+      "duration": 200
+    },
+    "beta": 1.0,
+    "delta": 0.5,
+    "baseline_rate": 0.3,
+    "pairwise_source": 2,
+    "pairwise_target": 0,
+    "pairwise_weight": 0.3,
+    "hyperedge": [
+      0,
+      1
+    ],
+    "hyperedge_weight": 0.4,
+    "simulation_seed": 42,
+    "initialization_seed": 2026,
+    "max_events": 20000,
+    "repetitions": 10,
+    "warmup_repetitions": 1,
+    "phase_timeout_seconds": 900,
+    "lambda_l1": 0.001,
+    "hyper_update": "free",
+    "pairwise_diagonal_estimated": false,
+    "em": {
+      "max_iter": 1000,
+      "max_total_iter": 5000,
+      "min_iter": 10,
+      "convergence_tol": 1e-07,
+      "consecutive_convergence": 5,
+      "kkt_tol": 0.0001,
+      "ascent_tol": 1e-06
+    },
+    "refinement_max_sweeps": 2000,
+    "measurement_scope": "One fixed generated path and one fixed positive initial state per scale. Ten hardware timing repeats, not independent simulation replicates. Warmups excluded.",
+    "comparison_scope": "Revised free-weight implementation. Old CP/ALS timings are provenance only; no direct speedup ratio."
+  },
+  "n_events": 217,
+  "simulation": {
+    "completed": true,
+    "status": "completed",
+    "requested_end": 200.0,
+    "actual_end": 200.0,
+    "history_start": -0.0,
+    "max_events": 20000,
+    "seed": 42,
+    "n_proposals": 235,
+    "n_rejected": 18,
+    "maximum_acceptance_ratio": 1.0,
+    "elapsed_seconds": 0.004713400034233928
+  },
+  "initial_parameters": {
+    "baseline_basis": {
+      "kind": "constant",
+      "origin": 0.0,
+      "end": null,
+      "period": null
+    },
+    "baseline_coefficients": [
+      [
+        0.17157392547017447
+      ],
+      [
+        0.35596526628606184
+      ],
+      [
+        0.28690736045739407
+      ]
+    ],
+    "alpha_pairwise": [
+      [
+        0.0,
+        0.07098346686193024,
+        0.158103649170653
+      ],
+      [
+        0.1810287673354348,
+        0.0,
+        0.1305569605370264
+      ],
+      [
+        0.059660553471113854,
+        0.19339244003247813,
+        0.0
+      ]
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ]
+    ],
+    "alpha_hyper": [
+      0.272554781450628
+    ]
+  }
+}

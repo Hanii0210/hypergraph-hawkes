@@ -1,0 +1,202 @@
+{
+  "task": {
+    "sweep": "node_count",
+    "n_nodes": 8,
+    "T": 200,
+    "path": "node_count/N_8"
+  },
+  "config": {
+    "experiment": "syn07_scalability",
+    "schema_version": 1,
+    "event_count_sweep": {
+      "n_nodes": 4,
+      "durations": [
+        100,
+        200,
+        400,
+        800,
+        1600
+      ]
+    },
+    "node_count_sweep": {
+      "n_nodes": [
+        3,
+        5,
+        8,
+        12
+      ],
+      "duration": 200
+    },
+    "beta": 1.0,
+    "delta": 0.5,
+    "baseline_rate": 0.3,
+    "pairwise_source": 2,
+    "pairwise_target": 0,
+    "pairwise_weight": 0.3,
+    "hyperedge": [
+      0,
+      1
+    ],
+    "hyperedge_weight": 0.4,
+    "simulation_seed": 42,
+    "initialization_seed": 2026,
+    "max_events": 20000,
+    "repetitions": 10,
+    "warmup_repetitions": 1,
+    "phase_timeout_seconds": 900,
+    "lambda_l1": 0.001,
+    "hyper_update": "free",
+    "pairwise_diagonal_estimated": false,
+    "em": {
+      "max_iter": 1000,
+      "max_total_iter": 5000,
+      "min_iter": 10,
+      "convergence_tol": 1e-07,
+      "consecutive_convergence": 5,
+      "kkt_tol": 0.0001,
+      "ascent_tol": 1e-06
+    },
+    "refinement_max_sweeps": 2000,
+    "measurement_scope": "One fixed generated path and one fixed positive initial state per scale. Ten hardware timing repeats, not independent simulation replicates. Warmups excluded.",
+    "comparison_scope": "Revised free-weight implementation. Old CP/ALS timings are provenance only; no direct speedup ratio."
+  },
+  "n_events": 506,
+  "simulation": {
+    "completed": true,
+    "status": "completed",
+    "requested_end": 200.0,
+    "actual_end": 200.0,
+    "history_start": -0.0,
+    "max_events": 20000,
+    "seed": 42,
+    "n_proposals": 517,
+    "n_rejected": 11,
+    "maximum_acceptance_ratio": 1.0,
+    "elapsed_seconds": 0.009931399952620268
+  },
+  "initial_parameters": {
+    "baseline_basis": {
+      "kind": "constant",
+      "origin": 0.0,
+      "end": null,
+      "period": null
+    },
+    "baseline_coefficients": [
+      [
+        0.17157392547017447
+      ],
+      [
+        0.35596526628606184
+      ],
+      [
+        0.28690736045739407
+      ],
+      [
+        0.24820021084321922
+      ],
+      [
+        0.2419669337238605
+      ],
+      [
+        0.416207298341306
+      ],
+      [
+        0.46205753467086963
+      ],
+      [
+        0.17094127672921947
+      ]
+    ],
+    "alpha_pairwise": [
+      [
+        0.0,
+        0.059660553471113854,
+        0.19339244003247813,
+        0.18397003210745566,
+        0.12717416082893027,
+        0.15054641941581734,
+        0.10303073926447036,
+        0.165179051675114
+      ],
+      [
+        0.08967610908002065,
+        0.0,
+        0.05557984310003181,
+        0.04526661136868069,
+        0.10516336866904968,
+        0.0861824121368863,
+        0.13263612409451908,
+        0.0025680964733613143
+      ],
+      [
+        0.08954038030774417,
+        0.07303616022647828,
+        0.0,
+        0.11897317420121056,
+        0.08706263119012891,
+        0.05999830074902997,
+        0.041883224247243916,
+        0.1749248114384359
+      ],
+      [
+        0.15949246310428655,
+        0.1213419353369958,
+        0.06902011573345844,
+        0.0,
+        0.11267547490050911,
+        0.08655254792399042,
+        0.18008991980084443,
+        0.06386836078037249
+      ],
+      [
+        0.13919897402675668,
+        0.06276406545247402,
+        0.05231060926236,
+        0.14016817790017108,
+        0.0,
+        0.09862206459697616,
+        0.11600569060411124,
+        0.03778127295089169
+      ],
+      [
+        0.14624813167168893,
+        0.10969661292492605,
+        0.12430065192518754,
+        0.07442886335936598,
+        0.08403865198412677,
+        0.0,
+        0.09399418248123398,
+        0.13512784456992463
+      ],
+      [
+        0.11543550089923985,
+        0.08325412859849327,
+        0.00036047072136380365,
+        0.15880621215510085,
+        0.10387684422886712,
+        0.06530893276225401,
+        0.0,
+        0.01868918669892361
+      ],
+      [
+        0.18094081451067057,
+        0.1979472335169007,
+        0.011747043503116596,
+        0.07164624371827628,
+        0.1460129155638167,
+        0.06284762624357654,
+        0.1134099516728898,
+        0.0
+      ]
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ]
+    ],
+    "alpha_hyper": [
+      0.32097425517080624
+    ]
+  }
+}
